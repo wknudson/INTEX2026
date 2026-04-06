@@ -3,22 +3,21 @@ import { useEffect } from 'react';
 import type { Book } from './types/Book';
 
 function BookList() {
+    const apiBaseUrl = 'http://localhost:4000';
 
     const [books, setBooks] = useState<Book[]>([]);
     const [pageSize, setPageSize] = useState<number>(5);
     const [pageNumber, setPageNumber] = useState<number>(1);
-    const [totalItems, setTotalItems] = useState<number>(0);
     const [totalPages, setTotalPages] = useState<number>(0);
     const [sortAsc, setSortAsc] = useState<boolean>(true);
 
     useEffect(() => {
         const fetchBooks = async () => {
             const response = await fetch(
-                `https://localhost:5000/api/book/AllBooks?pageNumber=${pageNumber}&pageSize=${pageSize}&sortAsc=${sortAsc}`
+                `${apiBaseUrl}/api/book/AllBooks?pageNumber=${pageNumber}&pageSize=${pageSize}&sortAsc=${sortAsc}`
             );
             const data = await response.json();
             setBooks(data.books);
-            setTotalItems(data.totalBooks);                          
             setTotalPages(Math.ceil(data.totalBooks / pageSize));    
         };
 

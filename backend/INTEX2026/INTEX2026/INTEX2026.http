@@ -1,0 +1,6 @@
+@INTEX2026_HostAddress = http://localhost:4000
+
+GET {{INTEX2026_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
