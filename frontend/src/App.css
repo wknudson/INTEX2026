@@ -4,3 +4,21 @@
   border-radius: 999px;
   padding: 0.35rem 0.8rem;
 }
+
+.simple-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cookie-banner {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1040;
+  background: #1f2937;
+  color: #fff;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}

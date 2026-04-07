@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiFetch } from '../lib/api';
 import type { AuthUser } from '../types/auth';
@@ -8,13 +8,38 @@ type AuthContextValue = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  function toAuthUser(raw: any): AuthUser {
+    return {
+      id: raw.id ?? raw.Id,
+      email: raw.email ?? raw.Email,
+      displayName: raw.displayName ?? raw.DisplayName ?? '',
+      roles: raw.roles ?? raw.Roles ?? [],
+      privacyPolicyAccepted: Boolean(raw.privacyPolicyAccepted ?? raw.PrivacyPolicyAccepted),
+      cookieConsentAccepted: Boolean(raw.cookieConsentAccepted ?? raw.CookieConsentAccepted),
+    };
+  }
+
+  async function refreshUser() {
+    try {
+      const data = await apiFetch<any>('/api/auth/me');
+      setUser(toAuthUser(data));
+    } catch {
+      setUser(null);
+    }
+  }
+
+  useEffect(() => {
+    refreshUser().finally(() => setLoading(false));
+  }, []);
 
   async function login(email: string, password: string) {
     setLoading(true);
@@ -23,10 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      setUser({
-        ...data,
-        roles: data.roles ?? data.Roles ?? [],
-      } as AuthUser);
+      setUser(toAuthUser(data));
     } finally {
       setLoading(false);
     }
@@ -38,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo(
-    () => ({ user, loading, login, logout }),
+    () => ({ user, loading, login, logout, refreshUser }),
     [user, loading],
   );
 

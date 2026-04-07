@@ -1,5 +1,6 @@
 using INTEX2026.Data;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,10 +12,12 @@ namespace INTEX2026.Controllers;
 public class DonorsController : ControllerBase
 {
     private readonly BookstoreDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public DonorsController(BookstoreDbContext context)
+    public DonorsController(BookstoreDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
+        _userManager = userManager;
     }
 
     [HttpGet("supporters")]
@@ -60,10 +63,32 @@ public class DonorsController : ControllerBase
     }
 
     [HttpGet("donations")]
-    [Authorize(Roles = "ExecutiveAdmin,RegionalManager")]
+    [Authorize(Roles = "ExecutiveAdmin,RegionalManager,Donor")]
     public async Task<IActionResult> GetDonations([FromQuery] int page = 1, [FromQuery] int pageSize = 25)
     {
         var query = _context.Donations.AsQueryable();
+
+        if (User.IsInRole("Donor"))
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user is null || string.IsNullOrWhiteSpace(user.Email))
+            {
+                return Unauthorized();
+            }
+
+            var supporterIds = await _context.Supporters
+                .Where(s => s.Email == user.Email)
+                .Select(s => s.SupporterId)
+                .ToListAsync();
+
+            if (supporterIds.Count == 0)
+            {
+                return Ok(new { total = 0, page, pageSize, data = new List<Donation>() });
+            }
+
+            query = query.Where(d => supporterIds.Contains(d.SupporterId));
+        }
+
         var total = await query.CountAsync();
         var data = await query.OrderByDescending(d => d.DonationDate).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return Ok(new { total, page, pageSize, data });
@@ -73,6 +98,35 @@ public class DonorsController : ControllerBase
     [Authorize(Roles = "ExecutiveAdmin,RegionalManager,Donor")]
     public async Task<IActionResult> CreateDonation([FromBody] Donation donation)
     {
+        if (User.IsInRole("Donor"))
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user is null || string.IsNullOrWhiteSpace(user.Email))
+            {
+                return Unauthorized();
+            }
+
+            var supporter = await _context.Supporters.FirstOrDefaultAsync(s => s.Email == user.Email);
+            if (supporter is null)
+            {
+                supporter = new Supporter
+                {
+                    DisplayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.Email : user.DisplayName,
+                    Email = user.Email,
+                    Country = "Philippines",
+                    SupporterType = "MonetaryDonor",
+                    RelationshipType = "Local",
+                    AcquisitionChannel = "Website",
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Supporters.Add(supporter);
+                await _context.SaveChangesAsync();
+            }
+
+            donation.SupporterId = supporter.SupporterId;
+        }
+
         _context.Donations.Add(donation);
         await _context.SaveChangesAsync();
         return Ok(donation);
@@ -98,6 +152,40 @@ public class DonorsController : ControllerBase
         return Ok(item);
     }
 
+    [HttpPut("donations/{donationId:int}/recurring")]
+    [Authorize(Roles = "ExecutiveAdmin,RegionalManager,Donor")]
+    public async Task<IActionResult> UpdateRecurring(int donationId, [FromBody] RecurringUpdateRequest request)
+    {
+        var donation = await _context.Donations.FirstOrDefaultAsync(d => d.DonationId == donationId);
+        if (donation is null)
+        {
+            return NotFound();
+        }
+
+        if (User.IsInRole("Donor"))
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user is null || string.IsNullOrWhiteSpace(user.Email))
+            {
+                return Unauthorized();
+            }
+
+            var supporterIds = await _context.Supporters
+                .Where(s => s.Email == user.Email)
+                .Select(s => s.SupporterId)
+                .ToListAsync();
+
+            if (!supporterIds.Contains(donation.SupporterId))
+            {
+                return Forbid();
+            }
+        }
+
+        donation.IsRecurring = request.IsRecurring;
+        await _context.SaveChangesAsync();
+        return Ok(donation);
+    }
+
     [HttpGet("impact")]
     [AllowAnonymous]
     public async Task<IActionResult> PublicImpact()
@@ -108,5 +196,10 @@ public class DonorsController : ControllerBase
             .Take(12)
             .ToListAsync();
         return Ok(snapshots);
+    }
+
+    public class RecurringUpdateRequest
+    {
+        public bool IsRecurring { get; set; }
     }
 }

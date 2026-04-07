@@ -102,4 +102,49 @@ public class WorkPlannerController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok(todo);
     }
+
+    [HttpDelete("todos/{todoId:int}")]
+    [Authorize(Roles = "SocialWorker")]
+    public async Task<IActionResult> DeleteTodo(int todoId)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var todo = await _context.TodoItems.FirstOrDefaultAsync(t => t.TodoId == todoId && t.UserId == user.Id);
+        if (todo is null)
+        {
+            return NotFound();
+        }
+
+        _context.TodoItems.Remove(todo);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpDelete("todos/clear-completed")]
+    [Authorize(Roles = "SocialWorker")]
+    public async Task<IActionResult> ClearCompletedTodos()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        var completedTodos = await _context.TodoItems
+            .Where(t => t.UserId == user.Id && t.IsCompleted)
+            .ToListAsync();
+
+        if (completedTodos.Count == 0)
+        {
+            return NoContent();
+        }
+
+        _context.TodoItems.RemoveRange(completedTodos);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
 }
