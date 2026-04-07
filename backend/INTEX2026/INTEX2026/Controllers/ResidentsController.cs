@@ -1,6 +1,7 @@
 using INTEX2026.Contracts;
 using INTEX2026.Data;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace INTEX2026.Controllers;
 public class ResidentsController : ControllerBase
 {
     private readonly BookstoreDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public ResidentsController(BookstoreDbContext context)
+    public ResidentsController(BookstoreDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
+        _userManager = userManager;
     }
 
     [HttpGet]
@@ -28,6 +31,25 @@ public class ResidentsController : ControllerBase
         if (!includeClosed)
         {
             query = query.Where(r => r.CaseStatus != "Closed");
+        }
+
+        var appUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("SocialWorker") && appUser != null)
+        {
+            var workerLink = await _context.SocialWorkerUsers
+                .FirstOrDefaultAsync(x => x.UserId == appUser.Id);
+            if (workerLink != null)
+            {
+                var sw = await _context.SocialWorkers
+                    .FirstOrDefaultAsync(x => x.SocialWorkerId == workerLink.SocialWorkerId);
+                if (sw != null)
+                    query = query.Where(r => r.AssignedSocialWorker == sw.WorkerCode
+                                          || r.AssignedSocialWorker == sw.DisplayName);
+            }
+        }
+        else if (User.IsInRole("RegionalManager") && appUser?.SafehouseId != null)
+        {
+            query = query.Where(r => r.SafehouseId == appUser.SafehouseId.Value);
         }
 
         var total = await query.CountAsync();

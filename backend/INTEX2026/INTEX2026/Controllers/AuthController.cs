@@ -57,15 +57,14 @@ public class AuthController : ControllerBase
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user is null)
-        {
             return Unauthorized();
-        }
 
         var signIn = await _signInManager.PasswordSignInAsync(user, request.Password, true, false);
+        if (signIn.RequiresTwoFactor)
+            return Ok(new { requiresMfa = true });
+
         if (!signIn.Succeeded)
-        {
             return Unauthorized();
-        }
 
         var roles = await _userManager.GetRolesAsync(user);
         return Ok(new
@@ -127,6 +126,93 @@ public class AuthController : ControllerBase
             user.Id,
             user.DisplayName,
             user.Email,
+            Roles = roles,
+            user.PrivacyPolicyAccepted,
+            user.CookieConsentAccepted
+        });
+    }
+
+    [Authorize(Roles = "ExecutiveAdmin,RegionalManager")]
+    [HttpPost("create-account")]
+    public async Task<IActionResult> CreateAccount([FromBody] CreateAccountRequest request)
+    {
+        var allowedRoles = new[] { "ExecutiveAdmin", "RegionalManager", "SocialWorker" };
+        if (!allowedRoles.Contains(request.Role))
+            return BadRequest("Invalid role.");
+
+        if (User.IsInRole("RegionalManager") && request.Role != "SocialWorker")
+            return Forbid();
+
+        var existing = await _userManager.FindByEmailAsync(request.Email);
+        if (existing is not null)
+            return Conflict("Account already exists.");
+
+        var user = new ApplicationUser
+        {
+            UserName = request.Email,
+            Email = request.Email,
+            DisplayName = request.DisplayName,
+            EmailConfirmed = true,
+            SafehouseId = request.SafehouseId
+        };
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        await _userManager.AddToRoleAsync(user, request.Role);
+        return Ok(new { message = $"{request.Role} account created." });
+    }
+
+    [Authorize]
+    [HttpGet("mfa/setup")]
+    public async Task<IActionResult> MfaSetup()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null) return Unauthorized();
+
+        var key = await _userManager.GetAuthenticatorKeyAsync(user);
+        if (string.IsNullOrEmpty(key))
+        {
+            await _userManager.ResetAuthenticatorKeyAsync(user);
+            key = await _userManager.GetAuthenticatorKeyAsync(user);
+        }
+
+        var email = user.Email ?? "user";
+        var uri = $"otpauth://totp/Havyn:{email}?secret={key}&issuer=Havyn&digits=6";
+        return Ok(new { sharedKey = key, qrUri = uri });
+    }
+
+    [Authorize]
+    [HttpPost("mfa/verify")]
+    public async Task<IActionResult> MfaVerify([FromBody] MfaCodeRequest request)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null) return Unauthorized();
+
+        var valid = await _userManager.VerifyTwoFactorTokenAsync(
+            user, _userManager.Options.Tokens.AuthenticatorTokenProvider, request.Code);
+        if (!valid) return BadRequest("Invalid code.");
+
+        await _userManager.SetTwoFactorEnabledAsync(user, true);
+        return Ok(new { message = "MFA enabled." });
+    }
+
+    [HttpPost("mfa/validate")]
+    public async Task<IActionResult> MfaValidate([FromBody] MfaCodeRequest request)
+    {
+        var result = await _signInManager.TwoFactorAuthenticatorSignInAsync(request.Code, true, false);
+        if (!result.Succeeded) return Unauthorized("Invalid MFA code.");
+
+        var user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+        if (user is null) return Unauthorized();
+
+        var roles = await _userManager.GetRolesAsync(user);
+        return Ok(new
+        {
+            user.Id,
+            user.Email,
+            user.DisplayName,
             Roles = roles,
             user.PrivacyPolicyAccepted,
             user.CookieConsentAccepted

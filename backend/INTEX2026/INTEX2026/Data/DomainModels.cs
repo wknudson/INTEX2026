@@ -11,6 +11,7 @@ public class ApplicationUser : IdentityUser
     public bool CookieConsentAccepted { get; set; }
     public DateTime? PrivacyPolicyAcceptedAtUtc { get; set; }
     public DateTime? CookieConsentAcceptedAtUtc { get; set; }
+    public int? SafehouseId { get; set; }
 }
 
 public class Safehouse
@@ -40,8 +41,27 @@ public class Resident
     public int SafehouseId { get; set; }
     [MaxLength(32)] public string CaseStatus { get; set; } = "Active";
     public DateOnly? DateOfBirth { get; set; }
+    [MaxLength(32)] public string? BirthStatus { get; set; }
+    [MaxLength(150)] public string? PlaceOfBirth { get; set; }
+    [MaxLength(100)] public string? Religion { get; set; }
     [MaxLength(64)] public string CaseCategory { get; set; } = string.Empty;
+    [MaxLength(500)] public string? SubCategories { get; set; }
+    public bool PersonWithDisability { get; set; }
+    [MaxLength(150)] public string? PwdType { get; set; }
+    public bool HasSpecialNeeds { get; set; }
+    [MaxLength(200)] public string? SpecialNeedsDiagnosis { get; set; }
+    public bool Is4PsBeneficiary { get; set; }
+    public bool SoloParentHousehold { get; set; }
+    public bool IndigenousFamily { get; set; }
+    public bool ParentIsPwd { get; set; }
+    public bool InformalSettler { get; set; }
     [MaxLength(64)] public string AssignedSocialWorker { get; set; } = string.Empty;
+    [MaxLength(64)] public string? ReferralSource { get; set; }
+    [MaxLength(150)] public string? ReferringAgency { get; set; }
+    public DateOnly? DateColbRegistered { get; set; }
+    public DateOnly? DateColbObtained { get; set; }
+    [MaxLength(200)] public string? InitialCaseAssessment { get; set; }
+    public DateOnly? DateCaseStudyPrepared { get; set; }
     [MaxLength(64)] public string ReintegrationType { get; set; } = "None";
     [MaxLength(32)] public string ReintegrationStatus { get; set; } = "Not Started";
     [MaxLength(32)] public string InitialRiskLevel { get; set; } = "Medium";
@@ -49,6 +69,7 @@ public class Resident
     public DateOnly? DateEnrolled { get; set; }
     public DateOnly? DateClosed { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? InitialNotes { get; set; }
     public string? NotesRestricted { get; set; }
 }
 
@@ -94,12 +115,15 @@ public class EducationRecord
     [Key] public int EducationRecordId { get; set; }
     public int ResidentId { get; set; }
     public DateOnly RecordDate { get; set; }
+    [MaxLength(100)] public string ProgramName { get; set; } = string.Empty;
+    [MaxLength(100)] public string? CourseName { get; set; }
     [MaxLength(50)] public string EducationLevel { get; set; } = string.Empty;
     [MaxLength(200)] public string SchoolName { get; set; } = string.Empty;
     [MaxLength(50)] public string EnrollmentStatus { get; set; } = string.Empty;
     public decimal AttendanceRate { get; set; }
     public decimal ProgressPercent { get; set; }
     [MaxLength(50)] public string CompletionStatus { get; set; } = string.Empty;
+    public decimal? GpaLikeScore { get; set; }
     public string? Notes { get; set; }
 }
 
@@ -290,6 +314,7 @@ public class Appointment
     [Key] public int AppointmentId { get; set; }
     public string StaffUserId { get; set; } = string.Empty;
     public int ResidentId { get; set; }
+    [MaxLength(150)] public string? EventName { get; set; }
     public DateOnly AppointmentDate { get; set; }
     public TimeOnly AppointmentTime { get; set; }
     [MaxLength(30)] public string AppointmentType { get; set; } = string.Empty;
@@ -299,6 +324,19 @@ public class Appointment
     [MaxLength(20)] public string Status { get; set; } = "Scheduled";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class SocialWorker
+{
+    [Key] public int SocialWorkerId { get; set; }
+    [MaxLength(20)] public string WorkerCode { get; set; } = string.Empty;
+    [MaxLength(100)] public string DisplayName { get; set; } = string.Empty;
+}
+
+public class SocialWorkerUser
+{
+    [Key] public string UserId { get; set; } = string.Empty;
+    public int SocialWorkerId { get; set; }
 }
 
 public class TodoItem

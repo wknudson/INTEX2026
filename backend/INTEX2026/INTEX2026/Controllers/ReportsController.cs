@@ -63,6 +63,35 @@ public class ReportsController : ControllerBase
         return Ok(data);
     }
 
+    [HttpGet("case-conferences")]
+    public async Task<IActionResult> CaseConferences()
+    {
+        var data = await _context.InterventionPlans
+            .Where(p => p.CaseConferenceDate != null)
+            .OrderByDescending(p => p.CaseConferenceDate)
+            .Take(200)
+            .ToListAsync();
+
+        var grouped = data
+            .GroupBy(p => new { p.ResidentId, p.CaseConferenceDate })
+            .Select(g =>
+            {
+                var resident = _context.Residents.FirstOrDefault(r => r.ResidentId == g.Key.ResidentId);
+                return new
+                {
+                    g.Key.ResidentId,
+                    InternalCode = resident?.InternalCode ?? "",
+                    ConferenceDate = g.Key.CaseConferenceDate,
+                    PlanCategories = string.Join(", ", g.Select(p => p.PlanCategory).Distinct()),
+                    PlanCount = g.Count()
+                };
+            })
+            .OrderByDescending(x => x.ConferenceDate)
+            .ToList();
+
+        return Ok(grouped);
+    }
+
     [HttpGet("export/donations.csv")]
     public async Task<IActionResult> ExportDonationsCsv()
     {

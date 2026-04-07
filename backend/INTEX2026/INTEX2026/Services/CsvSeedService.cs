@@ -1,6 +1,7 @@
 using CsvHelper;
 using CsvHelper.Configuration;
 using INTEX2026.Data;
+using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
 namespace INTEX2026.Services;
@@ -49,6 +50,8 @@ public class CsvSeedService
         {
             await SeedPublicSnapshotsAsync(db, csvPath);
         }
+
+        await SeedDemoAppointmentsAsync(db);
     }
 
     private static CsvReader CreateReader(string path)
@@ -612,5 +615,117 @@ public class CsvSeedService
     {
         var raw = ToString(row, key);
         return DateTime.TryParse(raw, out var result) ? result : null;
+    }
+
+    private static async Task SeedDemoAppointmentsAsync(BookstoreDbContext db)
+    {
+        var workser = await db.Users.FirstOrDefaultAsync(u => u.Email == "workser@havyn.org");
+        var worker = await db.Users.FirstOrDefaultAsync(u => u.Email == "worker@havyn.org");
+        var staffUserId = workser?.Id ?? worker?.Id;
+        if (string.IsNullOrWhiteSpace(staffUserId))
+        {
+            return;
+        }
+
+        var residentIds = await db.Residents
+            .OrderBy(r => r.ResidentId)
+            .Select(r => r.ResidentId)
+            .Take(4)
+            .ToListAsync();
+
+        if (residentIds.Count == 0)
+        {
+            return;
+        }
+
+        var existingForStaff = await db.Appointments
+            .AnyAsync(a => a.StaffUserId == staffUserId);
+
+        if (existingForStaff)
+        {
+            return;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var thisMonthStart = new DateOnly(today.Year, today.Month, 1);
+
+        var demoAppointments = new List<Appointment>
+        {
+            new()
+            {
+                StaffUserId = staffUserId,
+                ResidentId = residentIds[0],
+                AppointmentDate = thisMonthStart.AddDays(-6),
+                AppointmentTime = new TimeOnly(9, 0),
+                AppointmentType = "Healing",
+                SessionFormat = "Individual",
+                Location = "Room A",
+                Notes = "Follow-up counseling after last incident report.",
+                Status = "Completed"
+            },
+            new()
+            {
+                StaffUserId = staffUserId,
+                ResidentId = residentIds[Math.Min(1, residentIds.Count - 1)],
+                AppointmentDate = thisMonthStart.AddDays(-2),
+                AppointmentTime = new TimeOnly(14, 0),
+                AppointmentType = "Teaching",
+                SessionFormat = "Group",
+                Location = "Learning Hall",
+                Notes = "Bridge program progress review.",
+                Status = "Completed"
+            },
+            new()
+            {
+                StaffUserId = staffUserId,
+                ResidentId = residentIds[Math.Min(2, residentIds.Count - 1)],
+                AppointmentDate = thisMonthStart.AddDays(3),
+                AppointmentTime = new TimeOnly(10, 0),
+                AppointmentType = "Caring",
+                SessionFormat = "Individual",
+                Location = "Home Visit - Barangay 4",
+                Notes = "Routine family support visit.",
+                Status = "Scheduled"
+            },
+            new()
+            {
+                StaffUserId = staffUserId,
+                ResidentId = residentIds[Math.Min(3, residentIds.Count - 1)],
+                AppointmentDate = thisMonthStart.AddDays(10),
+                AppointmentTime = new TimeOnly(13, 30),
+                AppointmentType = "Legal Services",
+                SessionFormat = "Individual",
+                Location = "Partner Office",
+                Notes = "Legal documentation check-in.",
+                Status = "Scheduled"
+            },
+            new()
+            {
+                StaffUserId = staffUserId,
+                ResidentId = residentIds[0],
+                AppointmentDate = thisMonthStart.AddDays(16),
+                AppointmentTime = new TimeOnly(11, 0),
+                AppointmentType = "Healing",
+                SessionFormat = "Group",
+                Location = "Counseling Room",
+                Notes = "Group emotional regulation session.",
+                Status = "Scheduled"
+            },
+            new()
+            {
+                StaffUserId = staffUserId,
+                ResidentId = residentIds[Math.Min(1, residentIds.Count - 1)],
+                AppointmentDate = thisMonthStart.AddDays(22),
+                AppointmentTime = new TimeOnly(15, 0),
+                AppointmentType = "Teaching",
+                SessionFormat = "Individual",
+                Location = "Study Room",
+                Notes = "Exam readiness coaching.",
+                Status = "Scheduled"
+            }
+        };
+
+        db.Appointments.AddRange(demoAppointments);
+        await db.SaveChangesAsync();
     }
 }

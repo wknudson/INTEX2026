@@ -95,6 +95,28 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     var db = services.GetRequiredService<BookstoreDbContext>();
     await db.Database.EnsureCreatedAsync();
+    await db.Database.ExecuteSqlRawAsync(@"
+        CREATE TABLE IF NOT EXISTS SocialWorkers (
+            SocialWorkerId INTEGER PRIMARY KEY AUTOINCREMENT,
+            WorkerCode TEXT NOT NULL UNIQUE,
+            DisplayName TEXT NOT NULL
+        );
+    ");
+    await db.Database.ExecuteSqlRawAsync(@"
+        CREATE TABLE IF NOT EXISTS SocialWorkerUsers (
+            UserId TEXT PRIMARY KEY NOT NULL,
+            SocialWorkerId INTEGER NOT NULL,
+            FOREIGN KEY (SocialWorkerId) REFERENCES SocialWorkers(SocialWorkerId)
+        );
+    ");
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE Appointments ADD COLUMN EventName TEXT;");
+    }
+    catch
+    {
+        // Column already exists.
+    }
     await RoleSeedService.SeedAsync(services);
     await CsvSeedService.SeedAsync(db, builder.Configuration);
 }

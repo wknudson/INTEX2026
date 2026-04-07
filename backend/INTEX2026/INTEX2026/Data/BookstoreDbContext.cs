@@ -27,6 +27,8 @@ namespace INTEX2026.Data
         public DbSet<SafehouseMonthlyMetric> SafehouseMonthlyMetrics => Set<SafehouseMonthlyMetric>();
         public DbSet<PublicImpactSnapshot> PublicImpactSnapshots => Set<PublicImpactSnapshot>();
         public DbSet<Appointment> Appointments => Set<Appointment>();
+        public DbSet<SocialWorker> SocialWorkers => Set<SocialWorker>();
+        public DbSet<SocialWorkerUser> SocialWorkerUsers => Set<SocialWorkerUser>();
         public DbSet<TodoItem> TodoItems => Set<TodoItem>();
     }
 }

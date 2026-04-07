@@ -38,4 +38,23 @@ public class SafehousesController : ControllerBase
 
         return Ok(new { total, page, pageSize, data });
     }
+
+    [HttpGet("{safehouseId:int}")]
+    public async Task<IActionResult> GetSafehouse(int safehouseId)
+    {
+        var safehouse = await _context.Safehouses.FirstOrDefaultAsync(s => s.SafehouseId == safehouseId);
+        if (safehouse is null) return NotFound();
+
+        var residentCount = await _context.Residents.CountAsync(r => r.SafehouseId == safehouseId && r.CaseStatus != "Closed");
+        var metrics = await _context.SafehouseMonthlyMetrics
+            .Where(m => m.SafehouseId == safehouseId)
+            .OrderByDescending(m => m.MonthEnd)
+            .Take(12)
+            .ToListAsync();
+        var incidents = await _context.IncidentReports
+            .Where(i => i.SafehouseId == safehouseId && !i.Resolved)
+            .CountAsync();
+
+        return Ok(new { safehouse, residentCount, unresolvedIncidents = incidents, metrics });
+    }
 }

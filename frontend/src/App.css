@@ -11,6 +11,115 @@
   gap: 0.5rem;
 }
 
+.app-tab-nav .nav-link {
+  text-transform: capitalize;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.calendar-head {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  text-align: center;
+}
+
+.calendar-day {
+  min-height: 110px;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.4rem;
+  background: #f8fafc;
+  padding: 0.4rem;
+}
+
+.calendar-day--muted {
+  background: #f1f5f9;
+  opacity: 0.55;
+}
+
+.calendar-day-number {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.calendar-day--today {
+  background: #fff7d6;
+  border-color: #fde68a;
+}
+
+.calendar-event-wrap {
+  position: relative;
+}
+
+.calendar-event {
+  font-size: 0.75rem;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 0.35rem;
+  padding: 0.15rem 0.3rem;
+  margin-bottom: 0.25rem;
+  cursor: help;
+}
+
+.calendar-popover {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 2px);
+  z-index: 10;
+  width: 260px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.4rem;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  padding: 0.45rem 0.55rem;
+  font-size: 0.72rem;
+  color: #0f172a;
+}
+
+.calendar-event-wrap:hover .calendar-popover {
+  display: block;
+}
+
+.calendar-form-link {
+  margin-top: 0.35rem;
+  border: none;
+  background: transparent;
+  color: #475569;
+  text-decoration: underline;
+  font-size: 0.7rem;
+  padding: 0;
+}
+
+.calendar-more {
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.event-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.event-modal-card {
+  width: min(760px, 95vw);
+  background: #fff;
+  border-radius: 0.6rem;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  padding: 1rem;
+}
+
 .cookie-banner {
   position: fixed;
   left: 1rem;
