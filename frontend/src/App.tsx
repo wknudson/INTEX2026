@@ -318,9 +318,12 @@ function AdminDashboard() {
   const [partners, setPartners] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [report, setReport] = useState<any>(null);
-  const [safehouseComparison, setSafehouseComparison] = useState<any[]>([]);
-  const [donationTrends, setDonationTrends] = useState<any[]>([]);
+  const [residentOutcomes, setResidentOutcomes] = useState<any>(null);
+  const [servicesProvided, setServicesProvided] = useState<any>(null);
+  const [safehouseComparison, setSafehouseComparison] = useState<any>(null);
+  const [donationTrends, setDonationTrends] = useState<any>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [includeClosedReports, setIncludeClosedReports] = useState(false);
 
   // Safehouse detail
   const [selectedSafehouseId, setSelectedSafehouseId] = useState<number | ''>('');
@@ -361,12 +364,14 @@ function AdminDashboard() {
     apiFetch<any>('/api/donors/donations').then((r) => setDonations(r.data ?? [])).catch(() => setDonations([]));
     apiFetch<any>('/api/partners').then((r) => setPartners(r.data ?? [])).catch(() => setPartners([]));
     apiFetch<any>('/api/workplanner/appointments?page=1&pageSize=500').then((r) => setAppointments(r.data ?? [])).catch(() => setAppointments([]));
-    apiFetch('/api/reports/overview').then(setReport).catch(() => setReport(null));
-    apiFetch<any[]>('/api/reports/safehouse-comparison').then(setSafehouseComparison).catch(() => setSafehouseComparison([]));
-    apiFetch<any[]>('/api/reports/donation-trends').then(setDonationTrends).catch(() => setDonationTrends([]));
+    apiFetch(`/api/reports/overview?includeClosedCases=${includeClosedReports}`).then(setReport).catch(() => setReport(null));
+    apiFetch(`/api/reports/resident-outcomes?includeClosedCases=${includeClosedReports}`).then(setResidentOutcomes).catch(() => setResidentOutcomes(null));
+    apiFetch('/api/reports/services-provided').then(setServicesProvided).catch(() => setServicesProvided(null));
+    apiFetch('/api/reports/safehouse-comparison').then(setSafehouseComparison).catch(() => setSafehouseComparison(null));
+    apiFetch('/api/reports/donation-trends').then(setDonationTrends).catch(() => setDonationTrends(null));
   }
 
-  useEffect(() => { loadAdminData(); }, [includeInactive]);
+  useEffect(() => { loadAdminData(); }, [includeInactive, includeClosedReports]);
 
   useEffect(() => {
     if (!selectedSafehouseId) { setSafehouseDetail(null); return; }
@@ -568,19 +573,112 @@ function AdminDashboard() {
 
       {tab === 'reports' ? (
         <>
+          <div className="form-check mb-3">
+            <input id="includeClosedReports" className="form-check-input" type="checkbox" checked={includeClosedReports} onChange={(e) => setIncludeClosedReports(e.target.checked)} />
+            <label htmlFor="includeClosedReports" className="form-check-label">Include Closed Cases</label>
+          </div>
+
+          {/* SECTION 1: RESIDENT OUTCOMES */}
           <DataCard title="Resident Outcomes">
             <MetricsInline data={report} />
+            {residentOutcomes ? (
+              <>
+                <h6 className="mt-3">By Safehouse</h6>
+                <FilterSortTable columns={['safehouseId', 'count']} rows={residentOutcomes.bySafehouse ?? []} />
+                <h6 className="mt-3">By Case Category</h6>
+                <FilterSortTable columns={['category', 'count']} rows={residentOutcomes.byCategory ?? []} />
+                <h6 className="mt-3">By Risk Level</h6>
+                <FilterSortTable columns={['riskLevel', 'count']} rows={residentOutcomes.byRiskLevel ?? []} />
+                <h6 className="mt-3">Average Education Progress by Safehouse</h6>
+                <FilterSortTable columns={['safehouseId', 'avgProgress']} rows={residentOutcomes.eduBySafehouse ?? []} />
+                <h6 className="mt-3">Average Health Score by Safehouse</h6>
+                <FilterSortTable columns={['safehouseId', 'avgHealth']} rows={residentOutcomes.healthBySafehouse ?? []} />
+                <h6 className="mt-3">Reintegration Success</h6>
+                <p className="text-muted mb-1">Completed: {residentOutcomes.reintegrationCompletedTotal} of {residentOutcomes.totalForReintegration} started ({residentOutcomes.totalForReintegration > 0 ? Math.round(residentOutcomes.reintegrationCompletedTotal / residentOutcomes.totalForReintegration * 100) : 0}%)</p>
+                <FilterSortTable columns={['type', 'count']} rows={residentOutcomes.reintegration ?? []} />
+                <h6 className="mt-3">Closed Cases by Month</h6>
+                {(residentOutcomes.closedByMonth ?? []).length === 0 ? <p className="text-muted">No closed cases.</p> : (
+                  <FilterSortTable columns={['year', 'month', 'count']} rows={residentOutcomes.closedByMonth} />
+                )}
+              </>
+            ) : <p className="text-muted">Loading...</p>}
           </DataCard>
+
+          {/* SECTION 2: SERVICES PROVIDED */}
+          <DataCard title="Services Provided">
+            {servicesProvided ? (
+              <>
+                <h6>Caring (Home Visitations)</h6>
+                <div className="row">
+                  <div className="col-md-6">
+                    <p className="text-muted mb-1">By Visit Type</p>
+                    <FilterSortTable columns={['visitType', 'count']} rows={servicesProvided.caring ?? []} />
+                  </div>
+                  <div className="col-md-6">
+                    <p className="text-muted mb-1">By Outcome</p>
+                    <FilterSortTable columns={['outcome', 'count']} rows={servicesProvided.caringByOutcome ?? []} />
+                  </div>
+                </div>
+                <h6 className="mt-3">Healing (Process Recordings / Counseling)</h6>
+                <FilterSortTable columns={['sessionType', 'count']} rows={servicesProvided.healingByType ?? []} />
+                <p className="mt-1">Emotional improvement rate: <strong>{servicesProvided.emotionalImprovementRate}%</strong> ({servicesProvided.emotionalImproved} of {servicesProvided.totalSessions} sessions showed positive emotional shift)</p>
+                <h6 className="mt-3">Teaching (Education Records)</h6>
+                <div className="row">
+                  <div className="col-md-6">
+                    <p className="text-muted mb-1">By Program</p>
+                    <FilterSortTable columns={['program', 'count']} rows={servicesProvided.teachingByProgram ?? []} />
+                  </div>
+                  <div className="col-md-6">
+                    <p className="text-muted mb-1">By Completion Status</p>
+                    <FilterSortTable columns={['status', 'count']} rows={servicesProvided.teachingByCompletion ?? []} />
+                  </div>
+                </div>
+                <h6 className="mt-3">Legal Services</h6>
+                <p>Referrals made: <strong>{servicesProvided.referralsMade}</strong> | Legal intervention plans: <strong>{servicesProvided.legalPlans}</strong></p>
+              </>
+            ) : <p className="text-muted">Loading...</p>}
+          </DataCard>
+
+          {/* SECTION 3: SAFEHOUSE PERFORMANCE */}
           <DataCard title="Safehouse Performance Comparison">
-            {safehouseComparison.length === 0 ? <p className="text-muted">No data.</p> : (
-              <FilterSortTable columns={['safehouseId', 'monthStart', 'monthEnd', 'activeResidents', 'avgEducationProgress', 'avgHealthScore', 'processRecordingCount', 'homeVisitationCount', 'incidentCount']} rows={safehouseComparison} />
-            )}
+            {safehouseComparison ? (
+              <>
+                <h6>Latest Monthly Metrics by Safehouse</h6>
+                <FilterSortTable columns={['safehouseId', 'monthStart', 'activeResidents', 'avgEducationProgress', 'avgHealthScore', 'processRecordingCount', 'homeVisitationCount', 'incidentCount']} rows={safehouseComparison.latestMetrics ?? []} />
+                <h6 className="mt-3">Incident Breakdown by Safehouse</h6>
+                <FilterSortTable columns={['safehouseId', 'incidentType', 'severity', 'count']} rows={safehouseComparison.incidentBreakdown ?? []} />
+                <h6 className="mt-3">Occupancy Rates</h6>
+                <FilterSortTable columns={['name', 'currentOccupancy', 'capacityGirls', 'occupancyRate']} rows={safehouseComparison.occupancy ?? []} />
+              </>
+            ) : <p className="text-muted">Loading...</p>}
           </DataCard>
+
+          {/* SECTION 4: DONATION TRENDS */}
           <DataCard title="Donation Trends">
-            {donationTrends.length === 0 ? <p className="text-muted">No data.</p> : (
-              <FilterSortTable columns={['year', 'month', 'total', 'count']} rows={donationTrends} />
-            )}
+            {donationTrends ? (
+              <>
+                <h6>Monthly Totals</h6>
+                <FilterSortTable columns={['year', 'month', 'total', 'count']} rows={donationTrends.monthlyTotals ?? []} />
+                <h6 className="mt-3">By Donation Type</h6>
+                <FilterSortTable columns={['donationType', 'total', 'count']} rows={donationTrends.byType ?? []} />
+                <h6 className="mt-3">By Campaign</h6>
+                {(donationTrends.byCampaign ?? []).length === 0 ? <p className="text-muted">No campaign data.</p> : (
+                  <FilterSortTable columns={['campaign', 'total', 'count']} rows={donationTrends.byCampaign} />
+                )}
+                <h6 className="mt-3">Allocations by Safehouse and Program Area</h6>
+                {(donationTrends.allocationsBySafehouse ?? []).length === 0 ? <p className="text-muted">No allocation data.</p> : (
+                  <FilterSortTable columns={['safehouseId', 'programArea', 'total']} rows={donationTrends.allocationsBySafehouse} />
+                )}
+                <h6 className="mt-3">Recurring vs. One-Time</h6>
+                <p>Recurring: <strong>{donationTrends.recurringCount}</strong> | One-time: <strong>{donationTrends.oneTimeCount}</strong></p>
+                <h6 className="mt-3">New Donors by Month</h6>
+                <FilterSortTable columns={['year', 'month', 'count']} rows={donationTrends.newDonorsByMonth ?? []} />
+                <h6 className="mt-3">Donors by Acquisition Channel</h6>
+                <FilterSortTable columns={['channel', 'count']} rows={donationTrends.byChannel ?? []} />
+              </>
+            ) : <p className="text-muted">Loading...</p>}
           </DataCard>
+
           <a className="btn btn-sm btn-outline-primary mt-2" href="/api/reports/export/donations.csv">Export Donations CSV</a>
         </>
       ) : null}
