@@ -1,13 +1,32 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace INTEX2026.Data
 {
-    public class BookstoreDbContext : DbContext
+    public class BookstoreDbContext : IdentityDbContext<ApplicationUser>
     {
         public BookstoreDbContext(DbContextOptions<BookstoreDbContext> options) : base(options)
         {
         }
 
-        public DbSet<Book> Books { get; set; }
+        public DbSet<Safehouse> Safehouses => Set<Safehouse>();
+        public DbSet<Resident> Residents => Set<Resident>();
+        public DbSet<ProcessRecording> ProcessRecordings => Set<ProcessRecording>();
+        public DbSet<HomeVisitation> HomeVisitations => Set<HomeVisitation>();
+        public DbSet<EducationRecord> EducationRecords => Set<EducationRecord>();
+        public DbSet<HealthWellbeingRecord> HealthWellbeingRecords => Set<HealthWellbeingRecord>();
+        public DbSet<InterventionPlan> InterventionPlans => Set<InterventionPlan>();
+        public DbSet<IncidentReport> IncidentReports => Set<IncidentReport>();
+        public DbSet<Supporter> Supporters => Set<Supporter>();
+        public DbSet<Donation> Donations => Set<Donation>();
+        public DbSet<InKindDonationItem> InKindDonationItems => Set<InKindDonationItem>();
+        public DbSet<DonationAllocation> DonationAllocations => Set<DonationAllocation>();
+        public DbSet<Partner> Partners => Set<Partner>();
+        public DbSet<PartnerAssignment> PartnerAssignments => Set<PartnerAssignment>();
+        public DbSet<SocialMediaPost> SocialMediaPosts => Set<SocialMediaPost>();
+        public DbSet<SafehouseMonthlyMetric> SafehouseMonthlyMetrics => Set<SafehouseMonthlyMetric>();
+        public DbSet<PublicImpactSnapshot> PublicImpactSnapshots => Set<PublicImpactSnapshot>();
+        public DbSet<Appointment> Appointments => Set<Appointment>();
+        public DbSet<TodoItem> TodoItems => Set<TodoItem>();
     }
 }
