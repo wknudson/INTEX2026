@@ -4,3 +4,8 @@ node_modules/
 **/obj/
 *.user
 *.suo
+
+*.sqlite-shm
+*.sqlite-wal
+
+.env
