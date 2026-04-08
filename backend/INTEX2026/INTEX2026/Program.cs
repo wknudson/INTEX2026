@@ -58,7 +58,8 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(
                 "http://localhost:3000",
-                "http://localhost:5173")
+                "http://localhost:5173",
+                "https://black-river-0292ddd1e.2.azurestaticapps.net")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();

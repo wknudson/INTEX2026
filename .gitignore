@@ -2,6 +2,7 @@
 node_modules/
 **/bin/
 **/obj/
+**/publish/
 *.user
 *.suo
 appsettings.Development.json
@@ -9,4 +10,7 @@ appsettings.Development.json
 *.sqlite-shm
 *.sqlite-wal
 
-.env
+*.env
+frontend/.env
+frontend/.env
+
