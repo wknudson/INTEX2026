@@ -45,6 +45,15 @@ public class CreateAccountRequest
     public string Role { get; set; } = string.Empty;
 
     public int? SafehouseId { get; set; }
+
+    // Optional: Link to existing SocialWorker by WorkerCode (e.g., "SW_01")
+    public string? WorkerCode { get; set; }
+}
+
+public class LinkWorkerRequest
+{
+    [Required]
+    public string WorkerCode { get; set; } = string.Empty;
 }
 
 public class MfaCodeRequest

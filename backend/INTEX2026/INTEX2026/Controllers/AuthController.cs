@@ -3,6 +3,7 @@ using INTEX2026.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace INTEX2026.Controllers;
 
@@ -12,11 +13,13 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly BookstoreDbContext _context;
 
-    public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+    public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, BookstoreDbContext context)
     {
         _userManager = userManager;
         _signInManager = signInManager;
+        _context = context;
     }
 
     [HttpPost("register-donor")]
@@ -161,7 +164,70 @@ public class AuthController : ControllerBase
             return BadRequest(result.Errors);
 
         await _userManager.AddToRoleAsync(user, request.Role);
+
+        // If WorkerCode provided, link to existing SocialWorker
+        if (!string.IsNullOrEmpty(request.WorkerCode) && request.Role == "SocialWorker")
+        {
+            var socialWorker = await _context.SocialWorkers
+                .FirstOrDefaultAsync(sw => sw.WorkerCode == request.WorkerCode);
+            
+            if (socialWorker != null)
+            {
+                var workerLink = new SocialWorkerUser
+                {
+                    UserId = user.Id,
+                    SocialWorkerId = socialWorker.SocialWorkerId
+                };
+                _context.SocialWorkerUsers.Add(workerLink);
+                await _context.SaveChangesAsync();
+                return Ok(new 
+                { 
+                    message = $"{request.Role} account created and linked to {socialWorker.DisplayName} ({socialWorker.WorkerCode})." 
+                });
+            }
+            else
+            {
+                return BadRequest($"SocialWorker with code '{request.WorkerCode}' not found.");
+            }
+        }
+
         return Ok(new { message = $"{request.Role} account created." });
+    }
+
+    [Authorize(Roles = "SocialWorker")]
+    [HttpPost("link-worker")]
+    public async Task<IActionResult> LinkWorker([FromBody] LinkWorkerRequest request)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+            return Unauthorized();
+
+        var socialWorker = await _context.SocialWorkers
+            .FirstOrDefaultAsync(sw => sw.WorkerCode == request.WorkerCode);
+        
+        if (socialWorker == null)
+            return BadRequest($"SocialWorker with code '{request.WorkerCode}' not found.");
+
+        var existingLink = await _context.SocialWorkerUsers
+            .FirstOrDefaultAsync(x => x.UserId == user.Id);
+        
+        if (existingLink != null)
+        {
+            // Update existing link
+            existingLink.SocialWorkerId = socialWorker.SocialWorkerId;
+        }
+        else
+        {
+            // Create new link
+            _context.SocialWorkerUsers.Add(new SocialWorkerUser
+            {
+                UserId = user.Id,
+                SocialWorkerId = socialWorker.SocialWorkerId
+            });
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { message = $"Account linked to {socialWorker.DisplayName} ({socialWorker.WorkerCode})." });
     }
 
     [Authorize]
@@ -224,5 +290,17 @@ public class AuthController : ControllerBase
     {
         await _signInManager.SignOutAsync();
         return Ok();
+    }
+
+    [Authorize(Roles = "ExecutiveAdmin,RegionalManager")]
+    [HttpGet("available-workers")]
+    public async Task<IActionResult> GetAvailableWorkers()
+    {
+        var workers = await _context.SocialWorkers
+            .OrderBy(sw => sw.WorkerCode)
+            .Select(sw => new { sw.SocialWorkerId, sw.WorkerCode, sw.DisplayName })
+            .ToListAsync();
+        
+        return Ok(workers);
     }
 }
