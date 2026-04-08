@@ -21,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [mfaRequired, setMfaRequired] = useState(false);
 
   function toAuthUser(raw: any): AuthUser {
+    const sh = raw.safehouseId ?? raw.SafehouseId;
     return {
       id: raw.id ?? raw.Id,
       email: raw.email ?? raw.Email,
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       roles: raw.roles ?? raw.Roles ?? [],
       privacyPolicyAccepted: Boolean(raw.privacyPolicyAccepted ?? raw.PrivacyPolicyAccepted),
       cookieConsentAccepted: Boolean(raw.cookieConsentAccepted ?? raw.CookieConsentAccepted),
+      safehouseId: sh === undefined || sh === null ? undefined : Number(sh),
     };
   }
 

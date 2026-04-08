@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-// import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { TabBar } from '../components/TabBar';
+import { ResidentIntakeModal } from '../components/ResidentIntakeModal';
 import { DataCard } from '../components/DataCard';
 import { MetricsCard } from '../components/MetricsCard';
 import { MetricsInline } from '../components/MetricsInline';
@@ -39,6 +39,7 @@ export function ManagerDashboard() {
   const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
   const [eventForm, setEventForm] = useState<any>({ residentId: 0, eventDate: '', eventTime: '09:00', eventTypeChoice: 'Meeting', customEventType: '', eventName: '', notes: '' });
   const [eventMsg, setEventMsg] = useState('');
+  const [showIntakeModal, setShowIntakeModal] = useState(false);
 
   async function loadManagerData() {
     apiFetch('/api/dashboard/manager').then(setOverview).catch(() => setOverview(null));
@@ -198,9 +199,14 @@ export function ManagerDashboard() {
 
       {tab === 'caseload' && (
         <DataCard title="Caseload">
-          <div className="form-check mb-2">
-            <input id="includeClosedCases" className="form-check-input" type="checkbox" checked={includeClosed} onChange={(e) => setIncludeClosed(e.target.checked)} />
-            <label htmlFor="includeClosedCases" className="form-check-label">Include Closed Cases</label>
+          <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div className="form-check mb-0">
+              <input id="includeClosedCases" className="form-check-input" type="checkbox" checked={includeClosed} onChange={(e) => setIncludeClosed(e.target.checked)} />
+              <label htmlFor="includeClosedCases" className="form-check-label">Include Closed Cases</label>
+            </div>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowIntakeModal(true)}>
+              New resident intake
+            </button>
           </div>
           <FilterSortTable columns={['residentId', 'internalCode', 'caseStatus', 'currentRiskLevel', 'reintegrationStatus', 'assignedSocialWorker']} rows={residents} />
           <hr />
@@ -235,6 +241,16 @@ export function ManagerDashboard() {
             </div>
           )}
           {actionMessage && <p className="mt-2 mb-0">{actionMessage}</p>}
+          <ResidentIntakeModal
+            open={showIntakeModal}
+            onClose={() => setShowIntakeModal(false)}
+            availableWorkers={availableWorkers}
+            onSaved={async (residentId) => {
+              setActionMessage('Resident created.');
+              await loadManagerData();
+              setSelectedResidentId(residentId);
+            }}
+          />
         </DataCard>
       )}
 

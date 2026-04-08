@@ -7,4 +7,6 @@ export interface AuthUser {
   roles: UserRole[];
   privacyPolicyAccepted: boolean;
   cookieConsentAccepted: boolean;
+  /** Set for regional managers (and others linked to a site). */
+  safehouseId?: number | null;
 }
