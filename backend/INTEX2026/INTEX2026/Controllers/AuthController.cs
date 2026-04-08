@@ -131,7 +131,8 @@ public class AuthController : ControllerBase
             user.Email,
             Roles = roles,
             user.PrivacyPolicyAccepted,
-            user.CookieConsentAccepted
+            user.CookieConsentAccepted,
+            user.SafehouseId
         });
     }
 

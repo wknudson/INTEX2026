@@ -133,6 +133,159 @@ public class ResidentsController : ControllerBase
         });
     }
 
+    [HttpPost]
+    [Authorize(Roles = "ExecutiveAdmin,RegionalManager")]
+    public async Task<IActionResult> CreateResident([FromBody] ResidentIntakeRequest request)
+    {
+        var appUser = await _userManager.GetUserAsync(User);
+        if (appUser is null)
+            return Unauthorized();
+
+        var caseControl = request.CaseControlNo.Trim();
+        var internalCode = request.InternalCode.Trim();
+        if (string.IsNullOrEmpty(caseControl) || string.IsNullOrEmpty(internalCode))
+            return BadRequest(new { error = "Case control number and internal code are required." });
+
+        int safehouseId;
+        if (User.IsInRole("RegionalManager"))
+        {
+            if (appUser.SafehouseId is not int sh)
+                return BadRequest(new { error = "Regional manager account has no safehouse assigned." });
+            safehouseId = sh;
+        }
+        else
+        {
+            if (request.SafehouseId is null or <= 0)
+                return BadRequest(new { error = "SafehouseId is required for this account." });
+            var exists = await _context.Safehouses.AnyAsync(s => s.SafehouseId == request.SafehouseId.Value);
+            if (!exists)
+                return BadRequest(new { error = "Invalid safehouse." });
+            safehouseId = request.SafehouseId.Value;
+        }
+
+        var sex = string.IsNullOrWhiteSpace(request.Sex) ? "F" : request.Sex.Trim();
+        if (sex.Length > 10)
+            sex = sex[..10];
+
+        var subCategories = BuildSubCategoriesFromIntake(request);
+
+        var resident = new Resident
+        {
+            CaseControlNo = caseControl.Length > 64 ? caseControl[..64] : caseControl,
+            InternalCode = internalCode.Length > 64 ? internalCode[..64] : internalCode,
+            SafehouseId = safehouseId,
+            CaseStatus = "Active",
+            Sex = sex,
+            DateOfBirth = request.DateOfBirth,
+            BirthStatus = TruncateNullable(request.BirthStatus, 32),
+            PlaceOfBirth = TruncateNullable(request.PlaceOfBirth, 150),
+            Religion = TruncateNullable(request.Religion, 100),
+            CaseCategory = string.IsNullOrWhiteSpace(request.CaseCategory) ? string.Empty : (request.CaseCategory.Trim().Length > 64 ? request.CaseCategory.Trim()[..64] : request.CaseCategory.Trim()),
+            SubCategories = string.IsNullOrEmpty(subCategories) ? null : (subCategories.Length > 500 ? subCategories[..500] : subCategories),
+            PersonWithDisability = request.PersonWithDisability,
+            PwdType = TruncateNullable(request.PwdType, 150),
+            HasSpecialNeeds = request.HasSpecialNeeds,
+            SpecialNeedsDiagnosis = TruncateNullable(request.SpecialNeedsDiagnosis, 200),
+            Is4PsBeneficiary = request.Is4PsBeneficiary,
+            SoloParentHousehold = request.SoloParentHousehold,
+            IndigenousFamily = request.IndigenousFamily,
+            ParentIsPwd = request.ParentIsPwd,
+            InformalSettler = request.InformalSettler,
+            AssignedSocialWorker = Truncate(request.AssignedSocialWorker, 64),
+            ReferralSource = TruncateNullable(request.ReferralSource, 64),
+            ReferringAgency = TruncateNullable(request.ReferringAgency, 150),
+            DateColbRegistered = request.DateColbRegistered,
+            DateColbObtained = request.DateColbObtained,
+            InitialCaseAssessment = TruncateNullable(request.InitialCaseAssessment, 200),
+            DateCaseStudyPrepared = request.DateCaseStudyPrepared,
+            ReintegrationType = Truncate(request.ReintegrationType, 64),
+            ReintegrationStatus = Truncate(request.ReintegrationStatus, 32),
+            InitialRiskLevel = Truncate(request.InitialRiskLevel, 32),
+            CurrentRiskLevel = Truncate(request.CurrentRiskLevel, 32),
+            DateOfAdmission = request.DateOfAdmission,
+            DateEnrolled = request.DateEnrolled,
+            DateClosed = null,
+            CreatedAt = DateTime.UtcNow,
+            InitialNotes = request.InitialNotes,
+            NotesRestricted = request.NotesRestricted
+        };
+
+        _context.Residents.Add(resident);
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            resident.ResidentId,
+            resident.CaseControlNo,
+            resident.InternalCode,
+            resident.SafehouseId,
+            resident.CaseStatus,
+            resident.Sex,
+            resident.DateOfBirth,
+            resident.BirthStatus,
+            resident.PlaceOfBirth,
+            resident.Religion,
+            resident.CaseCategory,
+            resident.SubCategories,
+            resident.PersonWithDisability,
+            resident.PwdType,
+            resident.HasSpecialNeeds,
+            resident.SpecialNeedsDiagnosis,
+            resident.Is4PsBeneficiary,
+            resident.SoloParentHousehold,
+            resident.IndigenousFamily,
+            resident.ParentIsPwd,
+            resident.InformalSettler,
+            resident.AssignedSocialWorker,
+            resident.ReferralSource,
+            resident.ReferringAgency,
+            resident.DateColbRegistered,
+            resident.DateColbObtained,
+            resident.InitialCaseAssessment,
+            resident.DateCaseStudyPrepared,
+            resident.ReintegrationType,
+            resident.ReintegrationStatus,
+            resident.InitialRiskLevel,
+            resident.CurrentRiskLevel,
+            resident.DateOfAdmission,
+            resident.DateEnrolled,
+            resident.DateClosed,
+            resident.CreatedAt,
+            resident.InitialNotes,
+            resident.NotesRestricted
+        });
+    }
+
+    private static string BuildSubCategoriesFromIntake(ResidentIntakeRequest r)
+    {
+        var cats = new List<string>();
+        if (r.SubCatOrphaned) cats.Add("Orphaned");
+        if (r.SubCatTrafficked) cats.Add("Trafficked");
+        if (r.SubCatChildLabor) cats.Add("Child Labor");
+        if (r.SubCatPhysicalAbuse) cats.Add("Physical Abuse");
+        if (r.SubCatSexualAbuse) cats.Add("Sexual Abuse");
+        if (r.SubCatOsaec) cats.Add("OSAEC/CSAEM");
+        if (r.SubCatCicl) cats.Add("CICL");
+        if (r.SubCatAtRisk) cats.Add("At Risk (CAR)");
+        if (r.SubCatStreetChild) cats.Add("Street Child");
+        if (r.SubCatChildWithHiv) cats.Add("Child with HIV");
+        return string.Join(", ", cats);
+    }
+
+    private static string Truncate(string? s, int max)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+        var t = s.Trim();
+        return t.Length > max ? t[..max] : t;
+    }
+
+    private static string? TruncateNullable(string? s, int max)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        var t = s.Trim();
+        return t.Length > max ? t[..max] : t;
+    }
+
     [HttpGet("{residentId:int}")]
     public async Task<IActionResult> GetResident(int residentId)
     {
