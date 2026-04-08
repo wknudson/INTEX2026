@@ -13,9 +13,9 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
 
-    public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, BookstoreDbContext context)
+    public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, HavynDbContext context)
     {
         _userManager = userManager;
         _signInManager = signInManager;

@@ -11,10 +11,10 @@ namespace INTEX2026.Controllers;
 [Authorize(Policy = "RequireStaff")]
 public class FormsController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public FormsController(BookstoreDbContext context, UserManager<ApplicationUser> userManager)
+    public FormsController(HavynDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _userManager = userManager;

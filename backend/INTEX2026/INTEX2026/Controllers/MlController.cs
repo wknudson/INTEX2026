@@ -10,9 +10,9 @@ namespace INTEX2026.Controllers;
 [Authorize(Roles = "ExecutiveAdmin,RegionalManager,SocialWorker")]
 public class MlController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
 
-    public MlController(BookstoreDbContext context)
+    public MlController(HavynDbContext context)
     {
         _context = context;
     }

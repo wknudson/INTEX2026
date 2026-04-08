@@ -11,10 +11,10 @@ namespace INTEX2026.Controllers;
 [Authorize]
 public class DashboardController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public DashboardController(BookstoreDbContext context, UserManager<ApplicationUser> userManager)
+    public DashboardController(HavynDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _userManager = userManager;

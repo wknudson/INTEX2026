@@ -12,10 +12,10 @@ namespace INTEX2026.Controllers;
 [Authorize(Policy = "RequireStaff")]
 public class ResidentsController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public ResidentsController(BookstoreDbContext context, UserManager<ApplicationUser> userManager)
+    public ResidentsController(HavynDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _userManager = userManager;

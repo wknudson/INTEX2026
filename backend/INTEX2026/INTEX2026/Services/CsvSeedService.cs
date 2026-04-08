@@ -8,7 +8,7 @@ namespace INTEX2026.Services;
 
 public class CsvSeedService
 {
-    public static async Task SeedAsync(BookstoreDbContext db, IConfiguration config)
+    public static async Task SeedAsync(HavynDbContext db, IConfiguration config)
     {
         var csvPath = config["CsvData:RootPath"];
         if (string.IsNullOrWhiteSpace(csvPath) || !Directory.Exists(csvPath))
@@ -65,7 +65,7 @@ public class CsvSeedService
         });
     }
 
-    private static async Task SeedSafehousesAsync(BookstoreDbContext db, string root)
+    private static async Task SeedSafehousesAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "safehouses.csv");
         if (!File.Exists(path))
@@ -99,7 +99,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedSupportersAsync(BookstoreDbContext db, string root)
+    private static async Task SeedSupportersAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "supporters.csv");
         if (!File.Exists(path))
@@ -135,7 +135,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedResidentsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedResidentsAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "residents.csv");
         if (!File.Exists(path))
@@ -193,7 +193,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedDonationsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedDonationsAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "donations.csv");
         if (!File.Exists(path))
@@ -271,7 +271,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedPartnersAsync(BookstoreDbContext db, string root)
+    private static async Task SeedPartnersAsync(HavynDbContext db, string root)
     {
         var partnerPath = Path.Combine(root, "partners.csv");
         if (File.Exists(partnerPath))
@@ -325,7 +325,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedCaseTablesAsync(BookstoreDbContext db, string root)
+    private static async Task SeedCaseTablesAsync(HavynDbContext db, string root)
     {
         await SeedProcessRecordingsAsync(db, root);
         await SeedHomeVisitationsAsync(db, root);
@@ -336,7 +336,7 @@ public class CsvSeedService
         await SeedSocialPostsAsync(db, root);
     }
 
-    private static async Task SeedProcessRecordingsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedProcessRecordingsAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "process_recordings.csv");
         if (!File.Exists(path)) return;
@@ -367,7 +367,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedHomeVisitationsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedHomeVisitationsAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "home_visitations.csv");
         if (!File.Exists(path)) return;
@@ -397,7 +397,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedEducationRecordsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedEducationRecordsAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "education_records.csv");
         if (!File.Exists(path)) return;
@@ -423,7 +423,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedHealthRecordsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedHealthRecordsAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "health_wellbeing_records.csv");
         if (!File.Exists(path)) return;
@@ -453,7 +453,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedInterventionPlansAsync(BookstoreDbContext db, string root)
+    private static async Task SeedInterventionPlansAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "intervention_plans.csv");
         if (!File.Exists(path)) return;
@@ -480,7 +480,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedIncidentReportsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedIncidentReportsAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "incident_reports.csv");
         if (!File.Exists(path)) return;
@@ -508,7 +508,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedSocialPostsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedSocialPostsAsync(HavynDbContext db, string root)
     {
         var path = Path.Combine(root, "social_media_posts.csv");
         if (!File.Exists(path)) return;
@@ -538,7 +538,7 @@ public class CsvSeedService
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedPublicSnapshotsAsync(BookstoreDbContext db, string root)
+    private static async Task SeedPublicSnapshotsAsync(HavynDbContext db, string root)
     {
         var snapshotsPath = Path.Combine(root, "public_impact_snapshots.csv");
         if (File.Exists(snapshotsPath))
@@ -654,7 +654,7 @@ public class CsvSeedService
         return DateTime.TryParse(raw, out var result) ? result : null;
     }
 
-    private static async Task SeedDemoAppointmentsAsync(BookstoreDbContext db)
+    private static async Task SeedDemoAppointmentsAsync(HavynDbContext db)
     {
         var workser = await db.Users.FirstOrDefaultAsync(u => u.Email == "workser@havyn.org");
         var worker = await db.Users.FirstOrDefaultAsync(u => u.Email == "worker@havyn.org");

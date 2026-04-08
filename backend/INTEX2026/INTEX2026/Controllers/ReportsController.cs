@@ -12,10 +12,10 @@ namespace INTEX2026.Controllers;
 [Authorize(Roles = "ExecutiveAdmin,RegionalManager,SocialWorker")]
 public class ReportsController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public ReportsController(BookstoreDbContext context, UserManager<ApplicationUser> userManager)
+    public ReportsController(HavynDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _userManager = userManager;
