@@ -198,6 +198,133 @@ public class DonorsController : ControllerBase
         return Ok(snapshots);
     }
 
+    [HttpGet("impact-dashboard")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ImpactDashboard()
+    {
+        try
+        {
+            // Total funding across all donations
+            var totalFunding = await _context.Donations.SumAsync(d => d.Amount ?? d.EstimatedValue ?? 0m);
+            
+            // Total residents (lives helped)
+            var livesHelped = await _context.Residents.CountAsync();
+            
+            // Active safehouses count
+            var activeSafehouses = await _context.Safehouses.CountAsync(s => s.Status == "Active");
+            
+            // Total active donors
+            var totalDonors = await _context.Supporters.CountAsync(s => s.Status == "Active");
+            
+            // Donations by month (last 12 months)
+            var donationsByMonth = new Dictionary<string, decimal>();
+            try
+            {
+                var allDonations = await _context.Donations
+                    .Where(d => d.DonationDate >= DateOnly.FromDateTime(DateTime.Today.AddMonths(-12)))
+                    .Select(d => new { 
+                        Date = d.DonationDate, 
+                        Amount = d.Amount ?? d.EstimatedValue ?? 0m 
+                    })
+                    .ToListAsync();
+                
+                var grouped = allDonations
+                    .GroupBy(d => $"{d.Date.Year}-{d.Date.Month:D2}")
+                    .Select(g => new { 
+                        YearMonth = g.Key,
+                        Total = g.Sum(x => x.Amount)
+                    })
+                    .OrderBy(x => x.YearMonth)
+                    .ToList();
+                
+                foreach (var item in grouped)
+                {
+                    donationsByMonth[item.YearMonth] = item.Total;
+                }
+            }
+            catch { }
+            
+            // Residents by safehouse
+            var residentsByShDict = new Dictionary<string, int>();
+            try
+            {
+                var residentsBySafehouse = await _context.Residents
+                    .Where(r => r.CaseStatus != "Closed")
+                    .GroupBy(r => r.SafehouseId)
+                    .Select(g => new { SafehouseId = g.Key, Count = g.Count() })
+                    .ToListAsync();
+                
+                var safehouseNames = await _context.Safehouses
+                    .Where(s => s.Status == "Active")
+                    .ToDictionaryAsync(s => s.SafehouseId, s => s.Name);
+                
+                foreach (var item in residentsBySafehouse)
+                {
+                    var name = safehouseNames.ContainsKey(item.SafehouseId) ? safehouseNames[item.SafehouseId] : $"Safehouse {item.SafehouseId}";
+                    residentsByShDict[name] = item.Count;
+                }
+            }
+            catch { }
+            
+            // Health metrics
+            var avgHealthScore = 0m;
+            var avgEducationProgress = 0.0;
+            try
+            {
+                var healthRecordCount = await _context.HealthWellbeingRecords.CountAsync();
+                if (healthRecordCount > 0)
+                {
+                    avgHealthScore = await _context.HealthWellbeingRecords
+                        .Where(h => h.GeneralHealthScore > 0)
+                        .AverageAsync(h => h.GeneralHealthScore);
+                }
+            }
+            catch { }
+            
+            try
+            {
+                var eduRecordCount = await _context.EducationRecords.CountAsync();
+                if (eduRecordCount > 0)
+                {
+                    avgEducationProgress = await _context.EducationRecords
+                        .Where(e => e.ProgressPercent > 0)
+                        .AverageAsync(e => (double)e.ProgressPercent);
+                }
+            }
+            catch { }
+            
+            // Latest snapshot
+            PublicImpactSnapshot? latestSnapshot = null;
+            try
+            {
+                latestSnapshot = await _context.PublicImpactSnapshots
+                    .Where(s => s.IsPublished)
+                    .OrderByDescending(s => s.SnapshotDate)
+                    .FirstOrDefaultAsync();
+            }
+            catch { }
+            
+            return Ok(new 
+            { 
+                totalFunding,
+                livesHelped,
+                activeSafehouses,
+                totalDonors,
+                donationsByMonth,
+                residentsBySafehouse = residentsByShDict,
+                healthMetrics = new {
+                    avgHealthScore = (double)avgHealthScore,
+                    avgEducationProgress
+                },
+                latestSnapshot
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message, stackTrace = ex.StackTrace });
+        }
+    }
+
     public class RecurringUpdateRequest
     {
         public bool IsRecurring { get; set; }

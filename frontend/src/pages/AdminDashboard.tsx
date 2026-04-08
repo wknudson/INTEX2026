@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/api';
 import { TabBar } from '../components/TabBar';
 import { DataCard } from '../components/DataCard';
@@ -20,8 +19,6 @@ export function AdminDashboard() {
   const [report, setReport] = useState<any>(null);
   const [residentOutcomes, setResidentOutcomes] = useState<any>(null);
   const [servicesProvided, setServicesProvided] = useState<any>(null);
-  const [safehouseComparison, setSafehouseComparison] = useState<any>(null);
-  const [donationTrends, setDonationTrends] = useState<any>(null);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [includeClosedReports, setIncludeClosedReports] = useState(false);
 
@@ -62,8 +59,6 @@ export function AdminDashboard() {
     apiFetch(`/api/reports/overview?includeClosedCases=${includeClosedReports}`).then(setReport).catch(() => setReport(null));
     apiFetch(`/api/reports/resident-outcomes?includeClosedCases=${includeClosedReports}`).then(setResidentOutcomes).catch(() => setResidentOutcomes(null));
     apiFetch('/api/reports/services-provided').then(setServicesProvided).catch(() => setServicesProvided(null));
-    apiFetch('/api/reports/safehouse-comparison').then(setSafehouseComparison).catch(() => setSafehouseComparison(null));
-    apiFetch('/api/reports/donation-trends').then(setDonationTrends).catch(() => setDonationTrends(null));
   }
 
   useEffect(() => { loadAdminData(); }, [includeInactive, includeClosedReports]);
