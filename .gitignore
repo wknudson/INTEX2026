@@ -9,4 +9,6 @@ appsettings.Development.json
 *.sqlite-shm
 *.sqlite-wal
 
-.env
+*.env
+frontend/.env
+frontend/.env
