@@ -10,9 +10,9 @@ namespace INTEX2026.Controllers;
 [Authorize(Roles = "ExecutiveAdmin,RegionalManager")]
 public class SafehousesController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
 
-    public SafehousesController(BookstoreDbContext context)
+    public SafehousesController(HavynDbContext context)
     {
         _context = context;
     }

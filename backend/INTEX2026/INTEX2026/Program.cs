@@ -11,9 +11,17 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=havyn.sqlite";
-builder.Services.AddDbContext<BookstoreDbContext>(options => options.UseSqlite(connectionString));
+// Build connection string from environment variables, falling back to appsettings
+var pgHost = Environment.GetEnvironmentVariable("PGHOST") ?? builder.Configuration["Database:PGHOST"] ?? "localhost";
+var pgPort = Environment.GetEnvironmentVariable("PGPORT") ?? builder.Configuration["Database:PGPORT"] ?? "5432";
+var pgDatabase = Environment.GetEnvironmentVariable("PGDATABASE") ?? builder.Configuration["Database:PGDATABASE"] ?? "havyn";
+var pgUser = Environment.GetEnvironmentVariable("PGUSER") ?? builder.Configuration["Database:PGUSER"] ?? "postgres";
+var pgPassword = Environment.GetEnvironmentVariable("PGPASSWORD") ?? builder.Configuration["Database:PGPASSWORD"] ?? "";
+
+// For development, disable SSL mode; for production, use 'require'
+var sslMode = Environment.GetEnvironmentVariable("SSL_MODE") ?? builder.Configuration["Database:SSL_MODE"] ?? "require";
+var connectionString = $"Host={pgHost};Port={pgPort};Database={pgDatabase};Username={pgUser};Password={pgPassword};SSL Mode={sslMode};";
+builder.Services.AddDbContext<HavynDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -25,7 +33,7 @@ builder.Services
         options.Password.RequiredLength = 12;
         options.SignIn.RequireConfirmedAccount = false;
     })
-    .AddEntityFrameworkStores<BookstoreDbContext>()
+    .AddEntityFrameworkStores<HavynDbContext>()
     .AddDefaultTokenProviders();
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -80,7 +88,7 @@ app.Use(async (context, next) =>
         "style-src 'self'; " +
         "img-src 'self' data:; " +
         "font-src 'self'; " +
-        "connect-src 'self' http://localhost:5173 http://localhost:4000; " +
+        "connect-src 'self' http://localhost:5173 https://localhost:5173 http://localhost:4000 https://localhost:5000; " +
         "frame-ancestors 'none';";
     await next();
 });
@@ -93,30 +101,12 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var db = services.GetRequiredService<BookstoreDbContext>();
+    var db = services.GetRequiredService<HavynDbContext>();
+    
+    // EnsureCreatedAsync creates all tables defined in HavynDbContext
     await db.Database.EnsureCreatedAsync();
-    await db.Database.ExecuteSqlRawAsync(@"
-        CREATE TABLE IF NOT EXISTS SocialWorkers (
-            SocialWorkerId INTEGER PRIMARY KEY AUTOINCREMENT,
-            WorkerCode TEXT NOT NULL UNIQUE,
-            DisplayName TEXT NOT NULL
-        );
-    ");
-    await db.Database.ExecuteSqlRawAsync(@"
-        CREATE TABLE IF NOT EXISTS SocialWorkerUsers (
-            UserId TEXT PRIMARY KEY NOT NULL,
-            SocialWorkerId INTEGER NOT NULL,
-            FOREIGN KEY (SocialWorkerId) REFERENCES SocialWorkers(SocialWorkerId)
-        );
-    ");
-    try
-    {
-        await db.Database.ExecuteSqlRawAsync("ALTER TABLE Appointments ADD COLUMN EventName TEXT;");
-    }
-    catch
-    {
-        // Column already exists.
-    }
+    
+    // Seed roles and CSV data
     await RoleSeedService.SeedAsync(services);
     await CsvSeedService.SeedAsync(db, builder.Configuration);
 }

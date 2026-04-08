@@ -18,7 +18,7 @@ public class RoleSeedService
     {
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-        var db = services.GetRequiredService<BookstoreDbContext>();
+        var db = services.GetRequiredService<HavynDbContext>();
 
         foreach (var role in Roles)
         {
@@ -73,7 +73,7 @@ public class RoleSeedService
 
     private static async Task SeedSocialWorkerDirectoryAsync(
         UserManager<ApplicationUser> userManager,
-        BookstoreDbContext db)
+        HavynDbContext db)
     {
         var socialWorkers = (await userManager.GetUsersInRoleAsync("SocialWorker"))
             .OrderBy(u => u.Email)

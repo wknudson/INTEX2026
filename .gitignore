@@ -4,6 +4,7 @@ node_modules/
 **/obj/
 *.user
 *.suo
+appsettings.Development.json
 
 *.sqlite-shm
 *.sqlite-wal

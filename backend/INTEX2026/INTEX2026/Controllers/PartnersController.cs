@@ -10,9 +10,9 @@ namespace INTEX2026.Controllers;
 [Authorize]
 public class PartnersController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
 
-    public PartnersController(BookstoreDbContext context)
+    public PartnersController(HavynDbContext context)
     {
         _context = context;
     }

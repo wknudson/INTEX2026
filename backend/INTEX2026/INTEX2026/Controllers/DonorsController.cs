@@ -11,10 +11,10 @@ namespace INTEX2026.Controllers;
 [Authorize]
 public class DonorsController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public DonorsController(BookstoreDbContext context, UserManager<ApplicationUser> userManager)
+    public DonorsController(HavynDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _userManager = userManager;

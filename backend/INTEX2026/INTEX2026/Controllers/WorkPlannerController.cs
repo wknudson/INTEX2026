@@ -12,10 +12,10 @@ namespace INTEX2026.Controllers;
 [Authorize]
 public class WorkPlannerController : ControllerBase
 {
-    private readonly BookstoreDbContext _context;
+    private readonly HavynDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public WorkPlannerController(BookstoreDbContext context, UserManager<ApplicationUser> userManager)
+    public WorkPlannerController(HavynDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _userManager = userManager;
