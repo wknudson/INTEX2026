@@ -34,23 +34,13 @@ public class ResidentsController : ControllerBase
         }
 
         var appUser = await _userManager.GetUserAsync(User);
-        if (User.IsInRole("SocialWorker") && appUser != null)
-        {
-            var workerLink = await _context.SocialWorkerUsers
-                .FirstOrDefaultAsync(x => x.UserId == appUser.Id);
-            if (workerLink != null)
-            {
-                var sw = await _context.SocialWorkers
-                    .FirstOrDefaultAsync(x => x.SocialWorkerId == workerLink.SocialWorkerId);
-                if (sw != null)
-                    query = query.Where(r => r.AssignedSocialWorker == sw.WorkerCode
-                                          || r.AssignedSocialWorker == sw.DisplayName);
-            }
-        }
-        else if (User.IsInRole("RegionalManager") && appUser?.SafehouseId != null)
+        
+        // For Regional Managers, filter to their safehouse
+        if (User.IsInRole("RegionalManager") && appUser?.SafehouseId != null)
         {
             query = query.Where(r => r.SafehouseId == appUser.SafehouseId.Value);
         }
+        // For Social Workers, return all residents (filtering by assignment can be done on frontend if needed)
 
         var total = await query.CountAsync();
         var rows = await query

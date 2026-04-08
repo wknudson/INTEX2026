@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { SiteNav } from '../components/SiteNav';
 import { apiFetch } from '../lib/api';
 import { KPICard } from '../components/KPICard';
-import { DataCard } from '../components/DataCard';
 import '../styles/pages/DonorImpactPage.css';
 
 export function DonorImpactPage() {
@@ -84,52 +83,6 @@ export function DonorImpactPage() {
               <section className="dashboard-section">
                 <h4 className="section-title">Detailed Insights</h4>
                 <div className="charts-grid">
-                  {impactData.donationsByMonth && Object.keys(impactData.donationsByMonth).length > 0 && (
-                    <DataCard title="Monthly Funding Trend">
-                      <div className="chart-placeholder">
-                        <p className="text-muted">Donation trends chart</p>
-                        {/* Chart component would go here */}
-                      </div>
-                    </DataCard>
-                  )}
-                  
-                  {impactData.residentsBySafehouse && Object.keys(impactData.residentsBySafehouse).length > 0 && (
-                    <DataCard title="Residents by Safehouse">
-                      <div className="safehouse-breakdown">
-                        {Object.entries(impactData.residentsBySafehouse).map(([safehouse, count]: [string, any]) => (
-                          <div key={safehouse} className="breakdown-row">
-                            <span className="safehouse-name">{safehouse}</span>
-                            <span className="resident-count">{count} residents</span>
-                          </div>
-                        ))}
-                      </div>
-                    </DataCard>
-                  )}
-
-                  {impactData.healthMetrics && (
-                    <DataCard title="Average Health & Education">
-                      <div className="metrics-display">
-                        <div className="metric-row">
-                          <span className="metric-label">Avg Health Score</span>
-                          <span className="metric-value">{(impactData.healthMetrics.avgHealthScore || 0).toFixed(1)}/10</span>
-                        </div>
-                        <div className="metric-row">
-                          <span className="metric-label">Avg Education Progress</span>
-                          <span className="metric-value">{(impactData.healthMetrics.avgEducationProgress || 0).toFixed(1)}%</span>
-                        </div>
-                      </div>
-                    </DataCard>
-                  )}
-
-                  {impactData.latestSnapshot && (
-                    <DataCard title="Latest Impact Update">
-                      <div className="snapshot-preview">
-                        <h6 className="snapshot-headline">{impactData.latestSnapshot.headline}</h6>
-                        <small className="text-muted">{new Date(impactData.latestSnapshot.snapshotDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</small>
-                        <p className="mt-2 snapshot-text">{impactData.latestSnapshot.summaryText}</p>
-                      </div>
-                    </DataCard>
-                  )}
                 </div>
               </section>
             </>
