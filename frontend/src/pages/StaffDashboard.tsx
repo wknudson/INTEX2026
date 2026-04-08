@@ -5,6 +5,7 @@ import { TabBar } from '../components/TabBar';
 import { DataCard } from '../components/DataCard';
 import { MetricsCard } from '../components/MetricsCard';
 import { FilterSortTable } from '../components/FilterSortTable';
+import { StaffFormsTab } from './StaffFormsTab';
 
 export function StaffDashboard() {
   useAuth(); // Ensure auth context is loaded
@@ -43,7 +44,7 @@ export function StaffDashboard() {
 
   return (
     <div>
-      <TabBar current={tab} tabs={['overview', 'todos', 'recommended', 'residents']} onSelect={setTab} />
+      <TabBar current={tab} tabs={['overview', 'todos', 'recommended', 'residents', 'forms']} onSelect={setTab} />
 
       {tab === 'overview' && <MetricsCard title="Your Workload" data={overview} />}
 
@@ -80,6 +81,8 @@ export function StaffDashboard() {
           <FilterSortTable columns={['residentId', 'internalCode', 'caseStatus', 'currentRiskLevel', 'lastSessionDate']} rows={residents} />
         </DataCard>
       )}
+
+      {tab === 'forms' && <StaffFormsTab />}
     </div>
   );
 }

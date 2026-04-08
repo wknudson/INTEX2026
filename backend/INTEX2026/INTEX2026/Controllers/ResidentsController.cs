@@ -34,6 +34,8 @@ public class ResidentsController : ControllerBase
         }
 
         var appUser = await _userManager.GetUserAsync(User);
+        
+        // For Social Workers, filter by assignment
         if (User.IsInRole("SocialWorker") && appUser != null)
         {
             var workerLink = await _context.SocialWorkerUsers
@@ -43,10 +45,13 @@ public class ResidentsController : ControllerBase
                 var sw = await _context.SocialWorkers
                     .FirstOrDefaultAsync(x => x.SocialWorkerId == workerLink.SocialWorkerId);
                 if (sw != null)
-                    query = query.Where(r => r.AssignedSocialWorker == sw.WorkerCode
-                                          || r.AssignedSocialWorker == sw.DisplayName);
+                {
+                    // Filter to residents assigned to this social worker (by DisplayName or WorkerCode)
+                    query = query.Where(r => r.AssignedSocialWorker == sw.DisplayName || r.AssignedSocialWorker == sw.WorkerCode);
+                }
             }
         }
+        // For Regional Managers, filter to their safehouse
         else if (User.IsInRole("RegionalManager") && appUser?.SafehouseId != null)
         {
             query = query.Where(r => r.SafehouseId == appUser.SafehouseId.Value);
@@ -76,6 +81,56 @@ public class ResidentsController : ControllerBase
         });
 
         return Ok(new { total, page, pageSize, data });
+    }
+
+    [HttpGet("debug/my-assignment")]
+    public async Task<IActionResult> GetMyAssignment()
+    {
+        var appUser = await _userManager.GetUserAsync(User);
+        if (appUser == null)
+            return Unauthorized(new { error = "User not found" });
+
+        var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Unknown";
+        object? socialWorkerAssignment = null;
+
+        if (User.IsInRole("SocialWorker"))
+        {
+            var workerLink = await _context.SocialWorkerUsers
+                .FirstOrDefaultAsync(x => x.UserId == appUser.Id);
+            
+            if (workerLink != null)
+            {
+                var sw = await _context.SocialWorkers
+                    .FirstOrDefaultAsync(x => x.SocialWorkerId == workerLink.SocialWorkerId);
+                
+                if (sw != null)
+                {
+                    var assignedResidents = await _context.Residents
+                        .Where(r => r.CaseStatus != "Closed" && 
+                                    (r.AssignedSocialWorker == sw.DisplayName || r.AssignedSocialWorker == sw.WorkerCode))
+                        .Select(r => new { r.ResidentId, r.InternalCode, r.AssignedSocialWorker })
+                        .ToListAsync();
+
+                    socialWorkerAssignment = new
+                    {
+                        socialWorkerId = sw.SocialWorkerId,
+                        displayName = sw.DisplayName,
+                        workerCode = sw.WorkerCode,
+                        assignedResidentsCount = assignedResidents.Count,
+                        assignedResidents = assignedResidents
+                    };
+                }
+            }
+        }
+
+        return Ok(new
+        {
+            userId = appUser.Id,
+            email = appUser.Email,
+            userRole = userRole,
+            safehouseId = appUser.SafehouseId,
+            socialWorkerAssignment = socialWorkerAssignment
+        });
     }
 
     [HttpGet("{residentId:int}")]

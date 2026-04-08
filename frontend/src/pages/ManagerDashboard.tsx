@@ -33,6 +33,8 @@ export function ManagerDashboard() {
   const [acctPassword, setAcctPassword] = useState('');
   const [acctName, setAcctName] = useState('');
   const [acctMsg, setAcctMsg] = useState('');
+  const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
+  const [selectedWorkerCode, setSelectedWorkerCode] = useState('');
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
   const [eventForm, setEventForm] = useState<any>({ residentId: 0, eventDate: '', eventTime: '09:00', eventTypeChoice: 'Meeting', customEventType: '', eventName: '', notes: '' });
@@ -51,6 +53,12 @@ export function ManagerDashboard() {
   }
 
   useEffect(() => { loadManagerData(); }, [includeClosed, mgrIncludeClosedReports]);
+
+  useEffect(() => {
+    apiFetch<any[]>('/api/auth/available-workers')
+      .then(setAvailableWorkers)
+      .catch(() => setAvailableWorkers([]));
+  }, []);
 
   useEffect(() => {
     if (!selectedResidentId) { setSelectedResidentDetail(null); return; }
@@ -91,10 +99,14 @@ export function ManagerDashboard() {
 
   async function createWorkerAccount() {
     setAcctMsg('');
+    if (!selectedWorkerCode) {
+      setAcctMsg('Please select a Social Worker.');
+      return;
+    }
     try {
-      await apiFetch('/api/auth/create-account', { method: 'POST', body: JSON.stringify({ email: acctEmail, password: acctPassword, displayName: acctName, role: 'SocialWorker' }) });
-      setAcctMsg('Social Worker account created.');
-      setAcctEmail(''); setAcctPassword(''); setAcctName('');
+      await apiFetch('/api/auth/create-account', { method: 'POST', body: JSON.stringify({ email: acctEmail, password: acctPassword, displayName: acctName, role: 'SocialWorker', workerCode: selectedWorkerCode }) });
+      setAcctMsg('Social Worker account created and linked.');
+      setAcctEmail(''); setAcctPassword(''); setAcctName(''); setSelectedWorkerCode('');
     } catch (e) { setAcctMsg((e as Error).message); }
   }
 
@@ -136,9 +148,19 @@ export function ManagerDashboard() {
           <MetricsCard title="Regional Snapshot" data={overview} />
           <DataCard title="Create Social Worker Account">
             <div className="row g-2">
-              <div className="col-md-3"><input className="form-control" placeholder="Name" value={acctName} onChange={(e) => setAcctName(e.target.value)} /></div>
-              <div className="col-md-3"><input className="form-control" placeholder="Email" value={acctEmail} onChange={(e) => setAcctEmail(e.target.value)} /></div>
-              <div className="col-md-3"><input className="form-control" type="password" placeholder="Password (12+ chars)" value={acctPassword} onChange={(e) => setAcctPassword(e.target.value)} /></div>
+              <div className="col-md-2"><input className="form-control" placeholder="Name" value={acctName} onChange={(e) => setAcctName(e.target.value)} /></div>
+              <div className="col-md-2"><input className="form-control" placeholder="Email" value={acctEmail} onChange={(e) => setAcctEmail(e.target.value)} /></div>
+              <div className="col-md-2"><input className="form-control" type="password" placeholder="Password (12+ chars)" value={acctPassword} onChange={(e) => setAcctPassword(e.target.value)} /></div>
+              <div className="col-md-3">
+                <select className="form-control" value={selectedWorkerCode} onChange={(e) => setSelectedWorkerCode(e.target.value)}>
+                  <option value="">-- Select Social Worker --</option>
+                  {availableWorkers.map((w) => (
+                    <option key={w.socialWorkerId} value={w.workerCode}>
+                      {w.workerCode} - {w.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="col-md-3"><button className="btn btn-primary w-100" onClick={createWorkerAccount}>Create Worker</button></div>
             </div>
             {acctMsg && <p className="mt-2 mb-0">{acctMsg}</p>}

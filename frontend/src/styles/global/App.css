@@ -49,3 +49,89 @@
 .calendar-day--today {
   background: #fff7d6;
 }
+
+/* Calendar Events */
+.calendar-event-wrap {
+  position: relative;
+  margin-bottom: 0.4rem;
+}
+
+.calendar-event {
+  background: #dbeafe;
+  border: 1px solid #0ea5e9;
+  border-radius: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #0369a1;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.calendar-event:hover {
+  background: #0ea5e9;
+  color: white;
+  box-shadow: 0 2px 4px rgba(6, 105, 161, 0.2);
+}
+
+.calendar-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.4rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0.75rem;
+  padding-top: 0.75rem;
+  min-width: 250px;
+  font-size: 0.8rem;
+}
+
+.calendar-event-wrap:hover .calendar-popover {
+  display: block;
+}
+
+.calendar-popover > div {
+  margin-bottom: 0.4rem;
+  line-height: 1.3;
+}
+
+.calendar-popover > div:last-child {
+  margin-bottom: 0;
+}
+
+.calendar-popover strong {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.calendar-form-link {
+  background: none;
+  border: none;
+  color: #0ea5e9;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.calendar-form-link:hover {
+  color: #0369a1;
+}
+
+.calendar-more {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-top: 0.2rem;
+}
