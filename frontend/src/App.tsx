@@ -352,8 +352,9 @@ function AdminDashboard() {
   const [acctRole, setAcctRole] = useState('RegionalManager');
   const [acctMsg, setAcctMsg] = useState('');
 
-  // Event creation
+  // Event CRUD
   const [showEventModal, setShowEventModal] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
   const [eventForm, setEventForm] = useState<any>({ residentId: 0, eventDate: '', eventTime: '09:00', eventTypeChoice: 'Meeting', customEventType: '', eventName: '', notes: '' });
   const [eventMsg, setEventMsg] = useState('');
 
@@ -430,11 +431,27 @@ function AdminDashboard() {
     const eventType = eventForm.eventTypeChoice === 'Custom' ? eventForm.customEventType : eventForm.eventTypeChoice;
     const eventName = eventForm.eventName || eventType;
     try {
-      await apiFetch('/api/workplanner/appointments', { method: 'POST', body: JSON.stringify({ residentId: eventForm.residentId || 0, eventName, appointmentDate: eventForm.eventDate, appointmentTime: eventForm.eventTime, appointmentType: eventType, sessionFormat: 'Individual', notes: eventForm.notes, status: 'Scheduled' }) });
-      setEventMsg('Event created.');
+      if (editingAppointmentId) {
+        await apiFetch(`/api/workplanner/appointments/${editingAppointmentId}`, { method: 'PUT', body: JSON.stringify({ residentId: eventForm.residentId || 0, eventName, appointmentDate: eventForm.eventDate, appointmentTime: eventForm.eventTime, appointmentType: eventType, sessionFormat: 'Individual', notes: eventForm.notes, status: 'Scheduled' }) });
+        setEventMsg('Event updated.');
+      } else {
+        await apiFetch('/api/workplanner/appointments', { method: 'POST', body: JSON.stringify({ residentId: eventForm.residentId || 0, eventName, appointmentDate: eventForm.eventDate, appointmentTime: eventForm.eventTime, appointmentType: eventType, sessionFormat: 'Individual', notes: eventForm.notes, status: 'Scheduled' }) });
+        setEventMsg('Event created.');
+      }
       setShowEventModal(false);
+      setEditingAppointmentId(null);
       await loadAdminData();
     } catch (e) { setEventMsg((e as Error).message); }
+  }
+
+  async function deleteAdminEvent(appointmentId: number) { if (!window.confirm('Delete this event?')) return; await apiFetch(`/api/workplanner/appointments/${appointmentId}`, { method: 'DELETE' }); await loadAdminData(); }
+  async function toggleAdminEventComplete(appointmentId: number, completed: boolean) { await apiFetch(`/api/workplanner/appointments/${appointmentId}/complete`, { method: 'POST', body: JSON.stringify({ completed }) }); await loadAdminData(); }
+  function editAdminEvent(appointment: any) {
+    const knownTypes = ['Meeting', 'Speaking Event', 'Charity Event', 'Marketing', 'Awareness'];
+    const isCustom = !knownTypes.includes(String(appointment.appointmentType ?? ''));
+    setEditingAppointmentId(appointment.appointmentId);
+    setEventForm({ residentId: appointment.residentId ?? 0, eventDate: String(appointment.appointmentDate ?? ''), eventTime: formatTimeValue(appointment.appointmentTime), eventTypeChoice: isCustom ? 'Custom' : String(appointment.appointmentType ?? 'Meeting'), customEventType: isCustom ? String(appointment.appointmentType ?? '') : '', eventName: String(appointment.eventName ?? ''), notes: String(appointment.notes ?? '') });
+    setShowEventModal(true);
   }
 
   return (
@@ -460,10 +477,13 @@ function AdminDashboard() {
       {tab === 'schedule' ? (
         <DataCard title="Admin Schedule">
           <ScheduleCalendar title="Admin Schedule" appointments={appointments} residents={[]}
-            onAddEvent={() => { setShowEventModal(true); setEventForm({ residentId: 0, eventDate: '', eventTime: '09:00', eventTypeChoice: 'Meeting', customEventType: '', eventName: '', notes: '' }); }} />
+            onAddEvent={() => { setEditingAppointmentId(null); setEventForm({ residentId: 0, eventDate: '', eventTime: '09:00', eventTypeChoice: 'Meeting', customEventType: '', eventName: '', notes: '' }); setShowEventModal(true); }}
+            onEditEvent={(appt) => editAdminEvent(appt)}
+            onDeleteEvent={(appt) => deleteAdminEvent(appt.appointmentId)}
+            onToggleComplete={(appt, completed) => toggleAdminEventComplete(appt.appointmentId, completed)} />
           {showEventModal ? (
             <div className="event-modal-backdrop"><div className="event-modal-card">
-              <h5 className="mb-2">Add Event</h5>
+              <h5 className="mb-2">{editingAppointmentId ? 'Edit Event' : 'Add Event'}</h5>
               <div className="row g-2">
                 <div className="col-md-4"><label className="form-label">Date</label><input className="form-control" type="date" value={eventForm.eventDate} onChange={(e) => setEventForm({ ...eventForm, eventDate: e.target.value })} /></div>
                 <div className="col-md-4"><label className="form-label">Time</label><input className="form-control" type="time" value={eventForm.eventTime} onChange={(e) => setEventForm({ ...eventForm, eventTime: e.target.value })} /></div>
@@ -473,8 +493,8 @@ function AdminDashboard() {
               <div className="mt-2"><input className="form-control" placeholder="Event name" value={eventForm.eventName} onChange={(e) => setEventForm({ ...eventForm, eventName: e.target.value })} /></div>
               <div className="mt-2"><textarea className="form-control" rows={2} placeholder="Notes" value={eventForm.notes} onChange={(e) => setEventForm({ ...eventForm, notes: e.target.value })} /></div>
               <div className="d-flex justify-content-end gap-2 mt-3">
-                <button className="btn btn-outline-secondary" onClick={() => setShowEventModal(false)}>Cancel</button>
-                <button className="btn btn-primary" onClick={saveAdminEvent}>Save</button>
+                <button className="btn btn-outline-secondary" onClick={() => { setShowEventModal(false); setEditingAppointmentId(null); }}>Cancel</button>
+                <button className="btn btn-primary" onClick={saveAdminEvent}>{editingAppointmentId ? 'Update' : 'Save'}</button>
               </div>
               {eventMsg ? <p className="mt-2 mb-0">{eventMsg}</p> : null}
             </div></div>
@@ -698,6 +718,14 @@ function ManagerDashboard() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [conferences, setConferences] = useState<any[]>([]);
   const [includeClosed, setIncludeClosed] = useState(false);
+
+  // Reports
+  const [mgrReport, setMgrReport] = useState<any>(null);
+  const [mgrResidentOutcomes, setMgrResidentOutcomes] = useState<any>(null);
+  const [mgrServicesProvided, setMgrServicesProvided] = useState<any>(null);
+  const [mgrSafehouseComparison, setMgrSafehouseComparison] = useState<any>(null);
+  const [mgrDonationTrends, setMgrDonationTrends] = useState<any>(null);
+  const [mgrIncludeClosedReports, setMgrIncludeClosedReports] = useState(false);
   const [selectedResidentId, setSelectedResidentId] = useState<number | ''>('');
   const [selectedResidentDetail, setSelectedResidentDetail] = useState<any>(null);
   const [reintegrationType, setReintegrationType] = useState('None');
@@ -714,8 +742,9 @@ function ManagerDashboard() {
   const [acctName, setAcctName] = useState('');
   const [acctMsg, setAcctMsg] = useState('');
 
-  // Events
+  // Event CRUD
   const [showEventModal, setShowEventModal] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
   const [eventForm, setEventForm] = useState<any>({ residentId: 0, eventDate: '', eventTime: '09:00', eventTypeChoice: 'Meeting', customEventType: '', eventName: '', notes: '' });
   const [eventMsg, setEventMsg] = useState('');
 
@@ -726,9 +755,14 @@ function ManagerDashboard() {
     apiFetch<any>('/api/partners').then((r) => setPartners(r.data ?? [])).catch(() => setPartners([]));
     apiFetch<any>('/api/workplanner/appointments?page=1&pageSize=500').then((r) => setAppointments(r.data ?? [])).catch(() => setAppointments([]));
     apiFetch<any[]>('/api/reports/case-conferences').then(setConferences).catch(() => setConferences([]));
+    apiFetch(`/api/reports/overview?includeClosedCases=${mgrIncludeClosedReports}`).then(setMgrReport).catch(() => setMgrReport(null));
+    apiFetch(`/api/reports/resident-outcomes?includeClosedCases=${mgrIncludeClosedReports}`).then(setMgrResidentOutcomes).catch(() => setMgrResidentOutcomes(null));
+    apiFetch('/api/reports/services-provided').then(setMgrServicesProvided).catch(() => setMgrServicesProvided(null));
+    apiFetch('/api/reports/safehouse-comparison').then(setMgrSafehouseComparison).catch(() => setMgrSafehouseComparison(null));
+    apiFetch('/api/reports/donation-trends').then(setMgrDonationTrends).catch(() => setMgrDonationTrends(null));
   }
 
-  useEffect(() => { loadManagerData(); }, [includeClosed]);
+  useEffect(() => { loadManagerData(); }, [includeClosed, mgrIncludeClosedReports]);
 
   useEffect(() => {
     if (!selectedResidentId) { setSelectedResidentDetail(null); return; }
@@ -784,16 +818,32 @@ function ManagerDashboard() {
     const eventType = eventForm.eventTypeChoice === 'Custom' ? eventForm.customEventType : eventForm.eventTypeChoice;
     const eventName = eventForm.eventName || eventType;
     try {
-      await apiFetch('/api/workplanner/appointments', { method: 'POST', body: JSON.stringify({ residentId: eventForm.residentId || 0, eventName, appointmentDate: eventForm.eventDate, appointmentTime: eventForm.eventTime, appointmentType: eventType, sessionFormat: 'Individual', notes: eventForm.notes, status: 'Scheduled' }) });
-      setEventMsg('Event created.');
+      if (editingAppointmentId) {
+        await apiFetch(`/api/workplanner/appointments/${editingAppointmentId}`, { method: 'PUT', body: JSON.stringify({ residentId: eventForm.residentId || 0, eventName, appointmentDate: eventForm.eventDate, appointmentTime: eventForm.eventTime, appointmentType: eventType, sessionFormat: 'Individual', notes: eventForm.notes, status: 'Scheduled' }) });
+        setEventMsg('Event updated.');
+      } else {
+        await apiFetch('/api/workplanner/appointments', { method: 'POST', body: JSON.stringify({ residentId: eventForm.residentId || 0, eventName, appointmentDate: eventForm.eventDate, appointmentTime: eventForm.eventTime, appointmentType: eventType, sessionFormat: 'Individual', notes: eventForm.notes, status: 'Scheduled' }) });
+        setEventMsg('Event created.');
+      }
       setShowEventModal(false);
+      setEditingAppointmentId(null);
       await loadManagerData();
     } catch (e) { setEventMsg((e as Error).message); }
   }
 
+  async function deleteManagerEvent(appointmentId: number) { if (!window.confirm('Delete this event?')) return; await apiFetch(`/api/workplanner/appointments/${appointmentId}`, { method: 'DELETE' }); await loadManagerData(); }
+  async function toggleManagerEventComplete(appointmentId: number, completed: boolean) { await apiFetch(`/api/workplanner/appointments/${appointmentId}/complete`, { method: 'POST', body: JSON.stringify({ completed }) }); await loadManagerData(); }
+  function editManagerEvent(appointment: any) {
+    const knownTypes = ['Meeting', 'Staff Check-in', 'Case Review'];
+    const isCustom = !knownTypes.includes(String(appointment.appointmentType ?? ''));
+    setEditingAppointmentId(appointment.appointmentId);
+    setEventForm({ residentId: appointment.residentId ?? 0, eventDate: String(appointment.appointmentDate ?? ''), eventTime: formatTimeValue(appointment.appointmentTime), eventTypeChoice: isCustom ? 'Custom' : String(appointment.appointmentType ?? 'Meeting'), customEventType: isCustom ? String(appointment.appointmentType ?? '') : '', eventName: String(appointment.eventName ?? ''), notes: String(appointment.notes ?? '') });
+    setShowEventModal(true);
+  }
+
   return (
     <div>
-      <TabBar current={tab} tabs={['overview', 'schedule', 'caseload', 'donors', 'appointments', 'partners', 'conferences']} onSelect={setTab} />
+      <TabBar current={tab} tabs={['overview', 'schedule', 'caseload', 'donors', 'appointments', 'partners', 'conferences', 'reports']} onSelect={setTab} />
 
       {tab === 'overview' ? (
         <>
@@ -813,10 +863,13 @@ function ManagerDashboard() {
       {tab === 'schedule' ? (
         <DataCard title="Manager Schedule">
           <ScheduleCalendar title="Regional Manager Schedule" appointments={appointments} residents={residents}
-            onAddEvent={() => { setShowEventModal(true); setEventForm({ residentId: 0, eventDate: '', eventTime: '09:00', eventTypeChoice: 'Meeting', customEventType: '', eventName: '', notes: '' }); }} />
+            onAddEvent={() => { setEditingAppointmentId(null); setEventForm({ residentId: 0, eventDate: '', eventTime: '09:00', eventTypeChoice: 'Meeting', customEventType: '', eventName: '', notes: '' }); setShowEventModal(true); }}
+            onEditEvent={(appt) => editManagerEvent(appt)}
+            onDeleteEvent={(appt) => deleteManagerEvent(appt.appointmentId)}
+            onToggleComplete={(appt, completed) => toggleManagerEventComplete(appt.appointmentId, completed)} />
           {showEventModal ? (
             <div className="event-modal-backdrop"><div className="event-modal-card">
-              <h5 className="mb-2">Add Event</h5>
+              <h5 className="mb-2">{editingAppointmentId ? 'Edit Event' : 'Add Event'}</h5>
               <div className="row g-2">
                 <div className="col-md-4"><label className="form-label">Date</label><input className="form-control" type="date" value={eventForm.eventDate} onChange={(e) => setEventForm({ ...eventForm, eventDate: e.target.value })} /></div>
                 <div className="col-md-4"><label className="form-label">Time</label><input className="form-control" type="time" value={eventForm.eventTime} onChange={(e) => setEventForm({ ...eventForm, eventTime: e.target.value })} /></div>
@@ -826,8 +879,8 @@ function ManagerDashboard() {
               <div className="mt-2"><input className="form-control" placeholder="Event name" value={eventForm.eventName} onChange={(e) => setEventForm({ ...eventForm, eventName: e.target.value })} /></div>
               <div className="mt-2"><textarea className="form-control" rows={2} placeholder="Notes" value={eventForm.notes} onChange={(e) => setEventForm({ ...eventForm, notes: e.target.value })} /></div>
               <div className="d-flex justify-content-end gap-2 mt-3">
-                <button className="btn btn-outline-secondary" onClick={() => setShowEventModal(false)}>Cancel</button>
-                <button className="btn btn-primary" onClick={saveManagerEvent}>Save</button>
+                <button className="btn btn-outline-secondary" onClick={() => { setShowEventModal(false); setEditingAppointmentId(null); }}>Cancel</button>
+                <button className="btn btn-primary" onClick={saveManagerEvent}>{editingAppointmentId ? 'Update' : 'Save'}</button>
               </div>
               {eventMsg ? <p className="mt-2 mb-0">{eventMsg}</p> : null}
             </div></div>
@@ -912,6 +965,78 @@ function ManagerDashboard() {
           <FilterSortTable columns={['internalCode', 'conferenceDate', 'planCategories', 'planCount']} rows={conferences} />
         </DataCard>
       ) : null}
+
+      {tab === 'reports' ? (
+        <>
+          <div className="form-check mb-3">
+            <input id="mgrIncludeClosedReports" className="form-check-input" type="checkbox" checked={mgrIncludeClosedReports} onChange={(e) => setMgrIncludeClosedReports(e.target.checked)} />
+            <label htmlFor="mgrIncludeClosedReports" className="form-check-label">Include Closed Cases</label>
+          </div>
+          <DataCard title="Resident Outcomes (Your Safehouse)">
+            <MetricsInline data={mgrReport} />
+            {mgrResidentOutcomes ? (
+              <>
+                <h6 className="mt-3">By Case Category</h6>
+                <FilterSortTable columns={['category', 'count']} rows={mgrResidentOutcomes.byCategory ?? []} />
+                <h6 className="mt-3">By Risk Level</h6>
+                <FilterSortTable columns={['riskLevel', 'count']} rows={mgrResidentOutcomes.byRiskLevel ?? []} />
+                <h6 className="mt-3">Average Education Progress</h6>
+                <FilterSortTable columns={['safehouseId', 'avgProgress']} rows={mgrResidentOutcomes.eduBySafehouse ?? []} />
+                <h6 className="mt-3">Average Health Score</h6>
+                <FilterSortTable columns={['safehouseId', 'avgHealth']} rows={mgrResidentOutcomes.healthBySafehouse ?? []} />
+                <h6 className="mt-3">Reintegration Success</h6>
+                <p className="text-muted mb-1">Completed: {mgrResidentOutcomes.reintegrationCompletedTotal} of {mgrResidentOutcomes.totalForReintegration} started ({mgrResidentOutcomes.totalForReintegration > 0 ? Math.round(mgrResidentOutcomes.reintegrationCompletedTotal / mgrResidentOutcomes.totalForReintegration * 100) : 0}%)</p>
+                <FilterSortTable columns={['type', 'count']} rows={mgrResidentOutcomes.reintegration ?? []} />
+                <h6 className="mt-3">Closed Cases by Month</h6>
+                {(mgrResidentOutcomes.closedByMonth ?? []).length === 0 ? <p className="text-muted">No closed cases.</p> : (
+                  <FilterSortTable columns={['year', 'month', 'count']} rows={mgrResidentOutcomes.closedByMonth} />
+                )}
+              </>
+            ) : <p className="text-muted">Loading...</p>}
+          </DataCard>
+          <DataCard title="Services Provided (Your Safehouse)">
+            {mgrServicesProvided ? (
+              <>
+                <h6>Caring (Home Visitations)</h6>
+                <FilterSortTable columns={['visitType', 'count']} rows={mgrServicesProvided.caring ?? []} />
+                <h6 className="mt-3">Healing (Counseling Sessions)</h6>
+                <FilterSortTable columns={['sessionType', 'count']} rows={mgrServicesProvided.healingByType ?? []} />
+                <p className="mt-1">Emotional improvement rate: <strong>{mgrServicesProvided.emotionalImprovementRate}%</strong> ({mgrServicesProvided.emotionalImproved} of {mgrServicesProvided.totalSessions} sessions)</p>
+                <h6 className="mt-3">Teaching (Education)</h6>
+                <FilterSortTable columns={['program', 'count']} rows={mgrServicesProvided.teachingByProgram ?? []} />
+                <h6 className="mt-3">Legal Services</h6>
+                <p>Referrals made: <strong>{mgrServicesProvided.referralsMade}</strong> | Legal plans: <strong>{mgrServicesProvided.legalPlans}</strong></p>
+              </>
+            ) : <p className="text-muted">Loading...</p>}
+          </DataCard>
+          <DataCard title="Safehouse Performance">
+            {mgrSafehouseComparison ? (
+              <>
+                <h6>Latest Monthly Metrics</h6>
+                <FilterSortTable columns={['safehouseId', 'monthStart', 'activeResidents', 'avgEducationProgress', 'avgHealthScore', 'processRecordingCount', 'homeVisitationCount', 'incidentCount']} rows={mgrSafehouseComparison.latestMetrics ?? []} />
+                <h6 className="mt-3">Incident Breakdown</h6>
+                <FilterSortTable columns={['incidentType', 'severity', 'count']} rows={mgrSafehouseComparison.incidentBreakdown ?? []} />
+                <h6 className="mt-3">Occupancy</h6>
+                <FilterSortTable columns={['name', 'currentOccupancy', 'capacityGirls', 'occupancyRate']} rows={mgrSafehouseComparison.occupancy ?? []} />
+              </>
+            ) : <p className="text-muted">Loading...</p>}
+          </DataCard>
+          <DataCard title="Donation Trends (Safehouse Allocations)">
+            {mgrDonationTrends ? (
+              <>
+                <h6>Monthly Totals</h6>
+                <FilterSortTable columns={['year', 'month', 'total', 'count']} rows={mgrDonationTrends.monthlyTotals ?? []} />
+                <h6 className="mt-3">By Donation Type</h6>
+                <FilterSortTable columns={['donationType', 'total', 'count']} rows={mgrDonationTrends.byType ?? []} />
+                <h6 className="mt-3">Allocations by Program Area</h6>
+                {(mgrDonationTrends.allocationsBySafehouse ?? []).length === 0 ? <p className="text-muted">No allocation data.</p> : (
+                  <FilterSortTable columns={['programArea', 'total']} rows={mgrDonationTrends.allocationsBySafehouse} />
+                )}
+              </>
+            ) : <p className="text-muted">Loading...</p>}
+          </DataCard>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -936,11 +1061,11 @@ function StaffDashboard() {
 
   // Intake form with all fields
   const [intake, setIntake] = useState<any>({
-    safehouseId: 1, caseControlNo: '', internalCode: '', dateOfBirth: '', birthStatus: 'Marital', placeOfBirth: '', religion: '',
+    safehouseId: 1, caseControlNo: '', internalCode: '', sex: 'F', dateOfBirth: '', birthStatus: 'Marital', placeOfBirth: '', religion: '',
     caseCategory: 'Neglected', subCategories: '',
     personWithDisability: false, pwdType: '', hasSpecialNeeds: false, specialNeedsDiagnosis: '',
     is4PsBeneficiary: false, soloParentHousehold: false, indigenousFamily: false, parentIsPwd: false, informalSettler: false,
-    dateEnrolled: '', referralSource: 'Government Agency', referringAgency: '',
+    dateOfAdmission: '', dateEnrolled: '', referralSource: 'Government Agency', referringAgency: '',
     assignedSocialWorker: user?.displayName ?? '', initialRiskLevel: 'Medium', currentRiskLevel: 'Medium',
     dateColbRegistered: '', dateColbObtained: '', initialCaseAssessment: '', dateCaseStudyPrepared: '',
     reintegrationType: 'None', reintegrationStatus: 'Not Started', initialNotes: ''
@@ -948,10 +1073,16 @@ function StaffDashboard() {
 
   const [processForm, setProcessForm] = useState<any>({ residentId: 0, sessionDate: '', socialWorker: user?.displayName ?? '', sessionType: 'Individual', sessionDurationMinutes: 60, emotionalStateObserved: 'Anxious', emotionalStateEnd: 'Calm', sessionNarrative: '', interventionsApplied: '', followUpActions: '', progressNoted: false, concernsFlagged: false, referralMade: false });
   const [homeForm, setHomeForm] = useState<any>({ residentId: 0, visitDate: '', socialWorker: user?.displayName ?? '', visitType: 'Routine Follow-Up', locationVisited: '', familyMembersPresent: '', purpose: '', observations: '', familyCooperationLevel: 'Cooperative', safetyConcernsNoted: false, followUpNeeded: false, followUpNotes: '', visitOutcome: 'Favorable' });
-  const [educationForm, setEducationForm] = useState<any>({ residentId: 0, recordDate: '', programName: 'Bridge Program', courseName: 'Math', educationLevel: 'Secondary', schoolName: '', enrollmentStatus: 'InProgress', attendanceRate: 0.9, progressPercent: 50, completionStatus: 'InProgress', gpaLikeScore: 3.0, notes: '' });
+  const [educationForm, setEducationForm] = useState<any>({ residentId: 0, recordDate: '', programName: 'Bridge Program', courseName: 'Math', educationLevel: 'Secondary', schoolName: '', enrollmentStatus: 'Enrolled', attendanceRate: 0.9, progressPercent: 50, completionStatus: 'InProgress', gpaLikeScore: 3.0, notes: '' });
   const [healthForm, setHealthForm] = useState<any>({ residentId: 0, recordDate: '', generalHealthScore: 3.5, nutritionScore: 3.5, sleepQualityScore: 3.5, energyLevelScore: 3.5, heightCm: 150, weightKg: 45, medicalCheckupDone: false, dentalCheckupDone: false, psychologicalCheckupDone: false, notes: '' });
   const [planForm, setPlanForm] = useState<any>({ residentId: 0, planCategory: 'Psychosocial', planDescription: '', servicesProvided: 'Healing', targetValue: '', targetDate: '', status: 'Open', caseConferenceDate: '' });
-  const [incidentForm, setIncidentForm] = useState<any>({ residentId: 0, safehouseId: 1, incidentDate: '', incidentType: 'Behavioral', severity: 'Low', description: '', responseTaken: '', resolved: false, resolutionDate: '', reportedBy: user?.displayName ?? '', followUpRequired: false });
+  const [incidentForm, setIncidentForm] = useState<any>({ residentId: 0, safehouseId: 0, incidentDate: '', incidentType: 'Behavioral', severity: 'Low', description: '', responseTaken: '', resolved: false, resolutionDate: '', reportedBy: user?.displayName ?? '', followUpRequired: false });
+
+  // Reports
+  const [staffReport, setStaffReport] = useState<any>(null);
+  const [staffResidentOutcomes, setStaffResidentOutcomes] = useState<any>(null);
+  const [staffServicesProvided, setStaffServicesProvided] = useState<any>(null);
+  const [staffIncludeClosedReports, setStaffIncludeClosedReports] = useState(false);
 
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingAppointmentId, setEditingAppointmentId] = useState<number | null>(null);
@@ -966,9 +1097,12 @@ function StaffDashboard() {
     apiFetch<any>('/api/workplanner/appointments?page=1&pageSize=500').then((r) => setAppointments(r.data ?? [])).catch(() => setAppointments([]));
     const todoData = await apiFetch<any[]>('/api/workplanner/todos');
     setTodos(todoData);
+    apiFetch(`/api/reports/overview?includeClosedCases=${staffIncludeClosedReports}`).then(setStaffReport).catch(() => setStaffReport(null));
+    apiFetch(`/api/reports/resident-outcomes?includeClosedCases=${staffIncludeClosedReports}`).then(setStaffResidentOutcomes).catch(() => setStaffResidentOutcomes(null));
+    apiFetch('/api/reports/services-provided').then(setStaffServicesProvided).catch(() => setStaffServicesProvided(null));
   }
 
-  useEffect(() => { loadStaffData().catch(() => null); }, []);
+  useEffect(() => { loadStaffData().catch(() => null); }, [staffIncludeClosedReports]);
 
   useEffect(() => {
     if (!selectedResidentForForms) { setFormsTimeline(null); return; }
@@ -1018,7 +1152,10 @@ function StaffDashboard() {
       if (formType === 'home-visitation') await apiFetch('/api/forms/home-visitation', { method: 'POST', body: JSON.stringify(homeForm) });
       if (formType === 'education-record') await apiFetch('/api/forms/education-record', { method: 'POST', body: JSON.stringify(educationForm) });
       if (formType === 'health-record') await apiFetch('/api/forms/health-record', { method: 'POST', body: JSON.stringify({ ...healthForm, bmi: parseFloat(computedBmi) }) });
-      if (formType === 'intervention-plan') await apiFetch('/api/forms/intervention-plan', { method: 'POST', body: JSON.stringify(planForm) });
+      if (formType === 'intervention-plan') {
+        if ((planForm.status === 'Achieved' || planForm.status === 'Closed') && !planForm.caseConferenceDate) { setFormResult('A case conference date is required when status is Achieved or Closed.'); return; }
+        await apiFetch('/api/forms/intervention-plan', { method: 'POST', body: JSON.stringify(planForm) });
+      }
       if (formType === 'incident-report') await apiFetch('/api/forms/incident-report', { method: 'POST', body: JSON.stringify(incidentForm) });
       setFormResult('Form submitted. Submitted forms are read-only; submit a new row for corrections.');
       await loadStaffData();
@@ -1031,7 +1168,7 @@ function StaffDashboard() {
 
   return (
     <div>
-      <TabBar current={tab} tabs={['overview', 'schedule', 'caseload', 'forms', 'todos']} onSelect={setTab} />
+      <TabBar current={tab} tabs={['overview', 'schedule', 'caseload', 'forms', 'todos', 'reports']} onSelect={setTab} />
 
       {tab === 'overview' ? (
         <>
@@ -1126,11 +1263,12 @@ function StaffDashboard() {
             <div>
               <h6>Intake Form - Resident Admission Record</h6>
               <div className="row g-2">
-                <div className="col-md-3"><label className="form-label">Safehouse</label><input className="form-control" type="number" value={intake.safehouseId} onChange={(e) => setIntake({ ...intake, safehouseId: Number(e.target.value) })} /></div>
-                <div className="col-md-3"><label className="form-label">Case Control No</label><input className="form-control" value={intake.caseControlNo} onChange={(e) => setIntake({ ...intake, caseControlNo: e.target.value })} /></div>
-                <div className="col-md-3"><label className="form-label">Internal Code</label><input className="form-control" value={intake.internalCode} onChange={(e) => setIntake({ ...intake, internalCode: e.target.value })} /></div>
-                <div className="col-md-3"><label className="form-label">Date of Birth</label><input className="form-control" type="date" value={intake.dateOfBirth} onChange={(e) => setIntake({ ...intake, dateOfBirth: e.target.value })} /></div>
-                <div className="col-md-3"><label className="form-label">Birth Status</label><select className="form-select" value={intake.birthStatus} onChange={(e) => setIntake({ ...intake, birthStatus: e.target.value })}><option>Marital</option><option>Non-Marital</option></select></div>
+                <div className="col-md-2"><label className="form-label">Safehouse</label><input className="form-control" type="number" value={intake.safehouseId} onChange={(e) => setIntake({ ...intake, safehouseId: Number(e.target.value) })} /></div>
+                <div className="col-md-2"><label className="form-label">Case Control No</label><input className="form-control" value={intake.caseControlNo} onChange={(e) => setIntake({ ...intake, caseControlNo: e.target.value })} /></div>
+                <div className="col-md-2"><label className="form-label">Internal Code</label><input className="form-control" value={intake.internalCode} onChange={(e) => setIntake({ ...intake, internalCode: e.target.value })} /></div>
+                <div className="col-md-2"><label className="form-label">Sex</label><select className="form-select" value={intake.sex} onChange={(e) => setIntake({ ...intake, sex: e.target.value })}><option>F</option><option>M</option></select></div>
+                <div className="col-md-2"><label className="form-label">Date of Birth</label><input className="form-control" type="date" value={intake.dateOfBirth} onChange={(e) => setIntake({ ...intake, dateOfBirth: e.target.value })} /></div>
+                <div className="col-md-2"><label className="form-label">Birth Status</label><select className="form-select" value={intake.birthStatus} onChange={(e) => setIntake({ ...intake, birthStatus: e.target.value })}><option>Marital</option><option>Non-Marital</option></select></div>
                 <div className="col-md-3"><label className="form-label">Place of Birth</label><input className="form-control" value={intake.placeOfBirth} onChange={(e) => setIntake({ ...intake, placeOfBirth: e.target.value })} /></div>
                 <div className="col-md-3"><label className="form-label">Religion</label><input className="form-control" value={intake.religion} onChange={(e) => setIntake({ ...intake, religion: e.target.value })} /></div>
                 <div className="col-md-3"><label className="form-label">Case Category</label><select className="form-select" value={intake.caseCategory} onChange={(e) => setIntake({ ...intake, caseCategory: e.target.value })}><option>Abandoned</option><option>Foundling</option><option>Surrendered</option><option>Neglected</option></select></div>
@@ -1161,14 +1299,21 @@ function StaffDashboard() {
                 <div className="col-md-2"><div className="form-check"><input className="form-check-input" type="checkbox" checked={intake.informalSettler} onChange={(e) => setIntake({ ...intake, informalSettler: e.target.checked })} /><label className="form-check-label">Informal Settler</label></div></div>
               </div>
               <div className="row g-2 mt-2">
-                <div className="col-md-3"><label className="form-label">Date of Admission</label><input className="form-control" type="date" value={intake.dateEnrolled} onChange={(e) => setIntake({ ...intake, dateEnrolled: e.target.value })} /></div>
+                <div className="col-md-3"><label className="form-label">Date of Admission</label><input className="form-control" type="date" value={intake.dateOfAdmission} onChange={(e) => setIntake({ ...intake, dateOfAdmission: e.target.value })} /></div>
+                <div className="col-md-3"><label className="form-label">Date Enrolled (System)</label><input className="form-control" type="date" value={intake.dateEnrolled} onChange={(e) => setIntake({ ...intake, dateEnrolled: e.target.value })} /></div>
                 <div className="col-md-3"><label className="form-label">Referral Source</label><select className="form-select" value={intake.referralSource} onChange={(e) => setIntake({ ...intake, referralSource: e.target.value })}><option>Government Agency</option><option>NGO</option><option>Police</option><option>Self-Referral</option><option>Community</option><option>Court Order</option></select></div>
                 <div className="col-md-3"><label className="form-label">Referring Agency</label><input className="form-control" value={intake.referringAgency} onChange={(e) => setIntake({ ...intake, referringAgency: e.target.value })} /></div>
                 <div className="col-md-3"><label className="form-label">Assigned Staff</label><input className="form-control" value={intake.assignedSocialWorker} onChange={(e) => setIntake({ ...intake, assignedSocialWorker: e.target.value })} /></div>
                 <div className="col-md-3"><label className="form-label">Initial Risk</label><select className="form-select" value={intake.initialRiskLevel} onChange={(e) => setIntake({ ...intake, initialRiskLevel: e.target.value })}><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></div>
                 <div className="col-md-3"><label className="form-label">Current Risk</label><select className="form-select" value={intake.currentRiskLevel} onChange={(e) => setIntake({ ...intake, currentRiskLevel: e.target.value })}><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></div>
                 <div className="col-md-3"><label className="form-label">Reintegration Type</label><select className="form-select" value={intake.reintegrationType} onChange={(e) => setIntake({ ...intake, reintegrationType: e.target.value })}><option>None</option><option>Family Reunification</option><option>Foster Care</option><option>Adoption (Domestic)</option><option>Adoption (Inter-Country)</option><option>Independent Living</option></select></div>
+                <div className="col-md-3"><label className="form-label">Reintegration Status</label><select className="form-select" value={intake.reintegrationStatus} onChange={(e) => setIntake({ ...intake, reintegrationStatus: e.target.value })}><option>Not Started</option><option>In Progress</option><option>Completed</option><option>On Hold</option></select></div>
                 <div className="col-md-3"><label className="form-label">Assessment</label><input className="form-control" value={intake.initialCaseAssessment} onChange={(e) => setIntake({ ...intake, initialCaseAssessment: e.target.value })} /></div>
+              </div>
+              <div className="row g-2 mt-2">
+                <div className="col-md-3"><label className="form-label">COLB Registered</label><input className="form-control" type="date" value={intake.dateColbRegistered} onChange={(e) => setIntake({ ...intake, dateColbRegistered: e.target.value })} /></div>
+                <div className="col-md-3"><label className="form-label">COLB Obtained</label><input className="form-control" type="date" value={intake.dateColbObtained} onChange={(e) => setIntake({ ...intake, dateColbObtained: e.target.value })} /></div>
+                <div className="col-md-3"><label className="form-label">Case Study Prepared</label><input className="form-control" type="date" value={intake.dateCaseStudyPrepared} onChange={(e) => setIntake({ ...intake, dateCaseStudyPrepared: e.target.value })} /></div>
               </div>
               <div className="mt-2"><label className="form-label">Initial Notes</label><textarea className="form-control" rows={2} value={intake.initialNotes} onChange={(e) => setIntake({ ...intake, initialNotes: e.target.value })} /></div>
             </div>
@@ -1212,13 +1357,16 @@ function StaffDashboard() {
             <div className="row g-2">
               <div className="col-md-3"><label className="form-label">Resident</label><select className="form-select" value={educationForm.residentId} onChange={(e) => setEducationForm({ ...educationForm, residentId: Number(e.target.value) })}><option value={0}>Select</option>{residents.map((r) => <option key={r.residentId} value={r.residentId}>{r.internalCode}</option>)}</select></div>
               <div className="col-md-3"><label className="form-label">Date</label><input className="form-control" type="date" value={educationForm.recordDate} onChange={(e) => setEducationForm({ ...educationForm, recordDate: e.target.value })} /></div>
-              <div className="col-md-3"><label className="form-label">Program</label><select className="form-select" value={educationForm.programName} onChange={(e) => setEducationForm({ ...educationForm, programName: e.target.value })}><option>Bridge Program</option><option>Secondary Support</option><option>Vocational Skills</option><option>Literacy Boost</option></select></div>
-              <div className="col-md-3"><label className="form-label">Course</label><select className="form-select" value={educationForm.courseName} onChange={(e) => setEducationForm({ ...educationForm, courseName: e.target.value })}><option>Math</option><option>English</option><option>Science</option><option>Life Skills</option><option>Computer Basics</option><option>Livelihood</option></select></div>
               <div className="col-md-3"><label className="form-label">Level</label><select className="form-select" value={educationForm.educationLevel} onChange={(e) => setEducationForm({ ...educationForm, educationLevel: e.target.value })}><option>Primary</option><option>Secondary</option><option>Vocational</option><option>CollegePrep</option></select></div>
+              <div className="col-md-3"><label className="form-label">School Name</label><input className="form-control" value={educationForm.schoolName} onChange={(e) => setEducationForm({ ...educationForm, schoolName: e.target.value })} /></div>
+              <div className="col-md-3"><label className="form-label">Enrollment Status</label><select className="form-select" value={educationForm.enrollmentStatus} onChange={(e) => setEducationForm({ ...educationForm, enrollmentStatus: e.target.value })}><option>Enrolled</option><option>Dropped</option><option>Graduated</option><option>OnLeave</option></select></div>
+              <div className="col-md-3"><label className="form-label">Program</label><select className="form-select" value={educationForm.programName} onChange={(e) => setEducationForm({ ...educationForm, programName: e.target.value })}><option value="">None</option><option>Bridge Program</option><option>Secondary Support</option><option>Vocational Skills</option><option>Literacy Boost</option></select></div>
+              <div className="col-md-3"><label className="form-label">Course</label><select className="form-select" value={educationForm.courseName} onChange={(e) => setEducationForm({ ...educationForm, courseName: e.target.value })}><option value="">None</option><option>Math</option><option>English</option><option>Science</option><option>Life Skills</option><option>Computer Basics</option><option>Livelihood</option></select></div>
               <div className="col-md-3"><label className="form-label">Completion</label><select className="form-select" value={educationForm.completionStatus} onChange={(e) => setEducationForm({ ...educationForm, completionStatus: e.target.value })}><option>NotStarted</option><option>InProgress</option><option>Completed</option></select></div>
-              <div className="col-md-2"><label className="form-label">Attendance (0-1)</label><input className="form-control" type="number" step="0.01" value={educationForm.attendanceRate} onChange={(e) => setEducationForm({ ...educationForm, attendanceRate: Number(e.target.value) })} /></div>
+              <div className="col-md-2"><label className="form-label">Attendance %</label><input className="form-control" type="number" step="1" min="0" max="100" value={Math.round(educationForm.attendanceRate * 100)} onChange={(e) => setEducationForm({ ...educationForm, attendanceRate: Number(e.target.value) / 100 })} /></div>
               <div className="col-md-2"><label className="form-label">Progress %</label><input className="form-control" type="number" value={educationForm.progressPercent} onChange={(e) => setEducationForm({ ...educationForm, progressPercent: Number(e.target.value) })} /></div>
               <div className="col-md-2"><label className="form-label">GPA (1-5)</label><input className="form-control" type="number" step="0.1" value={educationForm.gpaLikeScore} onChange={(e) => setEducationForm({ ...educationForm, gpaLikeScore: Number(e.target.value) })} /></div>
+              <div className="col-12"><label className="form-label">Notes</label><textarea className="form-control" rows={2} value={educationForm.notes} onChange={(e) => setEducationForm({ ...educationForm, notes: e.target.value })} /></div>
             </div>
           ) : null}
 
@@ -1236,6 +1384,7 @@ function StaffDashboard() {
               <div className="col-md-3"><div className="form-check mt-3"><input className="form-check-input" type="checkbox" checked={healthForm.medicalCheckupDone} onChange={(e) => setHealthForm({ ...healthForm, medicalCheckupDone: e.target.checked })} /><label className="form-check-label">Medical Checkup</label></div></div>
               <div className="col-md-3"><div className="form-check mt-3"><input className="form-check-input" type="checkbox" checked={healthForm.dentalCheckupDone} onChange={(e) => setHealthForm({ ...healthForm, dentalCheckupDone: e.target.checked })} /><label className="form-check-label">Dental Checkup</label></div></div>
               <div className="col-md-3"><div className="form-check mt-3"><input className="form-check-input" type="checkbox" checked={healthForm.psychologicalCheckupDone} onChange={(e) => setHealthForm({ ...healthForm, psychologicalCheckupDone: e.target.checked })} /><label className="form-check-label">Psych Checkup</label></div></div>
+              <div className="col-12"><label className="form-label">Notes</label><textarea className="form-control" rows={2} value={healthForm.notes || ''} onChange={(e) => setHealthForm({ ...healthForm, notes: e.target.value })} /></div>
             </div>
           ) : null}
 
@@ -1246,14 +1395,16 @@ function StaffDashboard() {
               <div className="col-md-3"><label className="form-label">Target Date</label><input className="form-control" type="date" value={planForm.targetDate} onChange={(e) => setPlanForm({ ...planForm, targetDate: e.target.value })} /></div>
               <div className="col-md-3"><label className="form-label">Status</label><select className="form-select" value={planForm.status} onChange={(e) => setPlanForm({ ...planForm, status: e.target.value })}><option>Open</option><option>In Progress</option><option>Achieved</option><option>On Hold</option><option>Closed</option></select></div>
               <div className="col-md-6"><label className="form-label">Description</label><textarea className="form-control" rows={2} value={planForm.planDescription} onChange={(e) => setPlanForm({ ...planForm, planDescription: e.target.value })} /></div>
-              <div className="col-md-3"><label className="form-label">Services</label><input className="form-control" value={planForm.servicesProvided} onChange={(e) => setPlanForm({ ...planForm, servicesProvided: e.target.value })} /></div>
+              <div className="col-md-3"><label className="form-label">Services Provided</label><select className="form-select" value={planForm.servicesProvided} onChange={(e) => setPlanForm({ ...planForm, servicesProvided: e.target.value })}><option>Caring</option><option>Healing</option><option>Teaching</option><option>Legal Services</option><option>Healing, Legal Services</option><option>Healing, Legal Services, Teaching</option><option>Caring, Healing</option><option>Caring, Teaching</option></select></div>
+              <div className="col-md-3"><label className="form-label">Target Value</label><input className="form-control" type="number" step="0.1" value={planForm.targetValue} onChange={(e) => setPlanForm({ ...planForm, targetValue: e.target.value })} /></div>
               <div className="col-md-3"><label className="form-label">Conference Date</label><input className="form-control" type="date" value={planForm.caseConferenceDate} onChange={(e) => setPlanForm({ ...planForm, caseConferenceDate: e.target.value })} /></div>
             </div>
           ) : null}
 
           {formType === 'incident-report' ? (
             <div className="row g-2">
-              <div className="col-md-3"><label className="form-label">Resident</label><select className="form-select" value={incidentForm.residentId} onChange={(e) => setIncidentForm({ ...incidentForm, residentId: Number(e.target.value) })}><option value={0}>Select</option>{residents.map((r) => <option key={r.residentId} value={r.residentId}>{r.internalCode}</option>)}</select></div>
+              <div className="col-md-3"><label className="form-label">Resident</label><select className="form-select" value={incidentForm.residentId} onChange={(e) => { const rid = Number(e.target.value); const res = residents.find((r) => r.residentId === rid); setIncidentForm({ ...incidentForm, residentId: rid, safehouseId: res?.safehouseId ?? 0 }); }}><option value={0}>Select</option>{residents.map((r) => <option key={r.residentId} value={r.residentId}>{r.internalCode}</option>)}</select></div>
+              <div className="col-md-2"><label className="form-label">Safehouse</label><input className="form-control" readOnly value={incidentForm.safehouseId || 'Auto'} /></div>
               <div className="col-md-3"><label className="form-label">Date</label><input className="form-control" type="date" value={incidentForm.incidentDate} onChange={(e) => setIncidentForm({ ...incidentForm, incidentDate: e.target.value })} /></div>
               <div className="col-md-3"><label className="form-label">Type</label><select className="form-select" value={incidentForm.incidentType} onChange={(e) => setIncidentForm({ ...incidentForm, incidentType: e.target.value })}><option>Behavioral</option><option>Medical</option><option>Security</option><option>RunawayAttempt</option><option>SelfHarm</option><option>ConflictWithPeer</option><option>PropertyDamage</option></select></div>
               <div className="col-md-3"><label className="form-label">Severity</label><select className="form-select" value={incidentForm.severity} onChange={(e) => setIncidentForm({ ...incidentForm, severity: e.target.value })}><option>Low</option><option>Medium</option><option>High</option></select></div>
@@ -1308,6 +1459,56 @@ function StaffDashboard() {
             ))}
           </ul>
         </DataCard>
+      ) : null}
+
+      {tab === 'reports' ? (
+        <>
+          <div className="form-check mb-3">
+            <input id="staffIncludeClosedReports" className="form-check-input" type="checkbox" checked={staffIncludeClosedReports} onChange={(e) => setStaffIncludeClosedReports(e.target.checked)} />
+            <label htmlFor="staffIncludeClosedReports" className="form-check-label">Include Closed Cases</label>
+          </div>
+          <DataCard title="Resident Outcomes (Your Assigned Girls)">
+            <MetricsInline data={staffReport} />
+            {staffResidentOutcomes ? (
+              <>
+                <h6 className="mt-3">By Case Category</h6>
+                <FilterSortTable columns={['category', 'count']} rows={staffResidentOutcomes.byCategory ?? []} />
+                <h6 className="mt-3">By Risk Level</h6>
+                <FilterSortTable columns={['riskLevel', 'count']} rows={staffResidentOutcomes.byRiskLevel ?? []} />
+                <h6 className="mt-3">Average Education Progress</h6>
+                {(staffResidentOutcomes.eduBySafehouse ?? []).length === 0 ? <p className="text-muted">No education records yet.</p> : (
+                  <FilterSortTable columns={['safehouseId', 'avgProgress']} rows={staffResidentOutcomes.eduBySafehouse} />
+                )}
+                <h6 className="mt-3">Average Health Score</h6>
+                {(staffResidentOutcomes.healthBySafehouse ?? []).length === 0 ? <p className="text-muted">No health records yet.</p> : (
+                  <FilterSortTable columns={['safehouseId', 'avgHealth']} rows={staffResidentOutcomes.healthBySafehouse} />
+                )}
+                <h6 className="mt-3">Reintegration Success</h6>
+                <p className="text-muted mb-1">Completed: {staffResidentOutcomes.reintegrationCompletedTotal} of {staffResidentOutcomes.totalForReintegration} started ({staffResidentOutcomes.totalForReintegration > 0 ? Math.round(staffResidentOutcomes.reintegrationCompletedTotal / staffResidentOutcomes.totalForReintegration * 100) : 0}%)</p>
+                <FilterSortTable columns={['type', 'count']} rows={staffResidentOutcomes.reintegration ?? []} />
+                <h6 className="mt-3">Closed Cases by Month</h6>
+                {(staffResidentOutcomes.closedByMonth ?? []).length === 0 ? <p className="text-muted">No closed cases.</p> : (
+                  <FilterSortTable columns={['year', 'month', 'count']} rows={staffResidentOutcomes.closedByMonth} />
+                )}
+              </>
+            ) : <p className="text-muted">Loading...</p>}
+          </DataCard>
+          <DataCard title="Services Provided (Your Assigned Girls)">
+            {staffServicesProvided ? (
+              <>
+                <h6>Caring (Home Visitations)</h6>
+                <FilterSortTable columns={['visitType', 'count']} rows={staffServicesProvided.caring ?? []} />
+                <h6 className="mt-3">Healing (Counseling Sessions)</h6>
+                <FilterSortTable columns={['sessionType', 'count']} rows={staffServicesProvided.healingByType ?? []} />
+                <p className="mt-1">Emotional improvement rate: <strong>{staffServicesProvided.emotionalImprovementRate}%</strong> ({staffServicesProvided.emotionalImproved} of {staffServicesProvided.totalSessions} sessions)</p>
+                <h6 className="mt-3">Teaching (Education)</h6>
+                <FilterSortTable columns={['program', 'count']} rows={staffServicesProvided.teachingByProgram ?? []} />
+                <h6 className="mt-3">Legal Services</h6>
+                <p>Referrals made: <strong>{staffServicesProvided.referralsMade}</strong> | Legal plans: <strong>{staffServicesProvided.legalPlans}</strong></p>
+              </>
+            ) : <p className="text-muted">Loading...</p>}
+          </DataCard>
+        </>
       ) : null}
     </div>
   );

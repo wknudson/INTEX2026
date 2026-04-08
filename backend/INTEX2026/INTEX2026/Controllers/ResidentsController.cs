@@ -53,11 +53,27 @@ public class ResidentsController : ControllerBase
         }
 
         var total = await query.CountAsync();
-        var data = await query
+        var rows = await query
             .OrderBy(r => r.InternalCode)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
+        var data = rows.Select(r => new
+        {
+            r.ResidentId, r.CaseControlNo, r.InternalCode, r.SafehouseId, r.CaseStatus,
+            r.Sex, r.DateOfBirth, r.BirthStatus, r.PlaceOfBirth, r.Religion,
+            r.CaseCategory, r.SubCategories, r.PersonWithDisability, r.PwdType,
+            r.HasSpecialNeeds, r.SpecialNeedsDiagnosis,
+            r.Is4PsBeneficiary, r.SoloParentHousehold, r.IndigenousFamily, r.ParentIsPwd, r.InformalSettler,
+            r.AssignedSocialWorker, r.ReferralSource, r.ReferringAgency,
+            r.DateColbRegistered, r.DateColbObtained, r.InitialCaseAssessment, r.DateCaseStudyPrepared,
+            r.ReintegrationType, r.ReintegrationStatus, r.InitialRiskLevel, r.CurrentRiskLevel,
+            r.DateOfAdmission, r.DateEnrolled, r.DateClosed, r.CreatedAt, r.InitialNotes,
+            AgeUponAdmission = ComputeAge(r.DateOfBirth, r.DateOfAdmission ?? r.DateEnrolled),
+            PresentAge = ComputeAge(r.DateOfBirth, DateOnly.FromDateTime(DateTime.UtcNow)),
+            LengthOfStay = ComputeStay(r.DateOfAdmission ?? r.DateEnrolled, r.DateClosed)
+        });
 
         return Ok(new { total, page, pageSize, data });
     }
@@ -65,11 +81,25 @@ public class ResidentsController : ControllerBase
     [HttpGet("{residentId:int}")]
     public async Task<IActionResult> GetResident(int residentId)
     {
-        var resident = await _context.Residents.FirstOrDefaultAsync(r => r.ResidentId == residentId);
-        if (resident is null)
-        {
+        var r = await _context.Residents.FirstOrDefaultAsync(r => r.ResidentId == residentId);
+        if (r is null)
             return NotFound();
-        }
+
+        var resident = new
+        {
+            r.ResidentId, r.CaseControlNo, r.InternalCode, r.SafehouseId, r.CaseStatus,
+            r.Sex, r.DateOfBirth, r.BirthStatus, r.PlaceOfBirth, r.Religion,
+            r.CaseCategory, r.SubCategories, r.PersonWithDisability, r.PwdType,
+            r.HasSpecialNeeds, r.SpecialNeedsDiagnosis,
+            r.Is4PsBeneficiary, r.SoloParentHousehold, r.IndigenousFamily, r.ParentIsPwd, r.InformalSettler,
+            r.AssignedSocialWorker, r.ReferralSource, r.ReferringAgency,
+            r.DateColbRegistered, r.DateColbObtained, r.InitialCaseAssessment, r.DateCaseStudyPrepared,
+            r.ReintegrationType, r.ReintegrationStatus, r.InitialRiskLevel, r.CurrentRiskLevel,
+            r.DateOfAdmission, r.DateEnrolled, r.DateClosed, r.CreatedAt, r.InitialNotes,
+            AgeUponAdmission = ComputeAge(r.DateOfBirth, r.DateOfAdmission ?? r.DateEnrolled),
+            PresentAge = ComputeAge(r.DateOfBirth, DateOnly.FromDateTime(DateTime.UtcNow)),
+            LengthOfStay = ComputeStay(r.DateOfAdmission ?? r.DateEnrolled, r.DateClosed)
+        };
 
         var timeline = new
         {
@@ -82,6 +112,27 @@ public class ResidentsController : ControllerBase
         };
 
         return Ok(new { resident, timeline });
+    }
+
+    private static string ComputeAge(DateOnly? dob, DateOnly? referenceDate)
+    {
+        if (dob == null || referenceDate == null) return "";
+        var years = referenceDate.Value.Year - dob.Value.Year;
+        var months = referenceDate.Value.Month - dob.Value.Month;
+        if (referenceDate.Value.Day < dob.Value.Day) months--;
+        if (months < 0) { years--; months += 12; }
+        return $"{years} Years {months} months";
+    }
+
+    private static string ComputeStay(DateOnly? startDate, DateOnly? endDate)
+    {
+        if (startDate == null) return "";
+        var end = endDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var years = end.Year - startDate.Value.Year;
+        var months = end.Month - startDate.Value.Month;
+        if (end.Day < startDate.Value.Day) months--;
+        if (months < 0) { years--; months += 12; }
+        return $"{years} Years {months} months";
     }
 
     [HttpPost("{residentId:int}/close")]

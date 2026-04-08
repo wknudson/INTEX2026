@@ -40,6 +40,7 @@ public class Resident
     [MaxLength(64)] public string InternalCode { get; set; } = string.Empty;
     public int SafehouseId { get; set; }
     [MaxLength(32)] public string CaseStatus { get; set; } = "Active";
+    [MaxLength(10)] public string Sex { get; set; } = "F";
     public DateOnly? DateOfBirth { get; set; }
     [MaxLength(32)] public string? BirthStatus { get; set; }
     [MaxLength(150)] public string? PlaceOfBirth { get; set; }
@@ -66,6 +67,7 @@ public class Resident
     [MaxLength(32)] public string ReintegrationStatus { get; set; } = "Not Started";
     [MaxLength(32)] public string InitialRiskLevel { get; set; } = "Medium";
     [MaxLength(32)] public string CurrentRiskLevel { get; set; } = "Medium";
+    public DateOnly? DateOfAdmission { get; set; }
     public DateOnly? DateEnrolled { get; set; }
     public DateOnly? DateClosed { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

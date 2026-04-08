@@ -155,13 +155,34 @@ public class CsvSeedService
                 InternalCode = ToString(data, "internal_code"),
                 SafehouseId = ToInt(data, "safehouse_id"),
                 CaseStatus = ToString(data, "case_status"),
+                Sex = ToString(data, "sex").Length > 0 ? ToString(data, "sex") : "F",
                 DateOfBirth = ToDateOnly(data, "date_of_birth"),
+                BirthStatus = ToNullableString(data, "birth_status"),
+                PlaceOfBirth = ToNullableString(data, "place_of_birth"),
+                Religion = ToNullableString(data, "religion"),
                 CaseCategory = ToString(data, "case_category"),
+                SubCategories = BuildSubCategories(data),
+                PersonWithDisability = ToBool(data, "is_pwd"),
+                PwdType = ToNullableString(data, "pwd_type"),
+                HasSpecialNeeds = ToBool(data, "has_special_needs"),
+                SpecialNeedsDiagnosis = ToNullableString(data, "special_needs_diagnosis"),
+                Is4PsBeneficiary = ToBool(data, "family_is_4ps"),
+                SoloParentHousehold = ToBool(data, "family_solo_parent"),
+                IndigenousFamily = ToBool(data, "family_indigenous"),
+                ParentIsPwd = ToBool(data, "family_parent_pwd"),
+                InformalSettler = ToBool(data, "family_informal_settler"),
                 AssignedSocialWorker = ToString(data, "assigned_social_worker"),
+                ReferralSource = ToNullableString(data, "referral_source"),
+                ReferringAgency = ToNullableString(data, "referring_agency_person"),
+                DateColbRegistered = ToDateOnly(data, "date_colb_registered"),
+                DateColbObtained = ToDateOnly(data, "date_colb_obtained"),
+                InitialCaseAssessment = ToNullableString(data, "initial_case_assessment"),
+                DateCaseStudyPrepared = ToDateOnly(data, "date_case_study_prepared"),
                 ReintegrationType = ToString(data, "reintegration_type"),
                 ReintegrationStatus = ToString(data, "reintegration_status"),
                 InitialRiskLevel = ToString(data, "initial_risk_level"),
                 CurrentRiskLevel = ToString(data, "current_risk_level"),
+                DateOfAdmission = ToDateOnly(data, "date_of_admission"),
                 DateEnrolled = ToDateOnly(data, "date_enrolled"),
                 DateClosed = ToDateOnly(data, "date_closed"),
                 CreatedAt = ToDateTime(data, "created_at") ?? DateTime.UtcNow,
@@ -566,6 +587,22 @@ public class CsvSeedService
         }
 
         await db.SaveChangesAsync();
+    }
+
+    private static string BuildSubCategories(IDictionary<string, object> data)
+    {
+        var cats = new List<string>();
+        if (ToBool(data, "sub_cat_orphaned")) cats.Add("Orphaned");
+        if (ToBool(data, "sub_cat_trafficked")) cats.Add("Trafficked");
+        if (ToBool(data, "sub_cat_child_labor")) cats.Add("Child Labor");
+        if (ToBool(data, "sub_cat_physical_abuse")) cats.Add("Physical Abuse");
+        if (ToBool(data, "sub_cat_sexual_abuse")) cats.Add("Sexual Abuse");
+        if (ToBool(data, "sub_cat_osaec")) cats.Add("OSAEC/CSAEM");
+        if (ToBool(data, "sub_cat_cicl")) cats.Add("CICL");
+        if (ToBool(data, "sub_cat_at_risk")) cats.Add("At Risk (CAR)");
+        if (ToBool(data, "sub_cat_street_child")) cats.Add("Street Child");
+        if (ToBool(data, "sub_cat_child_with_hiv")) cats.Add("Child with HIV");
+        return string.Join(", ", cats);
     }
 
     private static string ToString(IDictionary<string, object> row, string key) =>
