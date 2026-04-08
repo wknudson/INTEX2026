@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/e570dcfe-6b0f-458b-81a3-19fd2bc81913/resourceGroups/appsvc_windows_mexicocentral/providers/Microsoft.Web/sites/havyn-team0110-backend",
+    "appService.deploySubpath": "backend/INTEX2026/INTEX2026/publish"
+}

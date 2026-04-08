@@ -2,6 +2,7 @@
 node_modules/
 **/bin/
 **/obj/
+**/publish/
 *.user
 *.suo
 appsettings.Development.json
