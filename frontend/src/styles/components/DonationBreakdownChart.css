@@ -1,0 +1,66 @@
+.chart-container {
+  padding: 1rem 0;
+}
+
+.chart-container h6 {
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.breakdown-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.breakdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.breakdown-label {
+  font-weight: 500;
+  color: #212529;
+  font-size: 0.95rem;
+}
+
+.breakdown-count {
+  background: #f8f9fa;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6c757d;
+}
+
+.breakdown-bar-container {
+  width: 100%;
+  height: 24px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.breakdown-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+}
+
+.breakdown-percentage {
+  font-size: 0.875rem;
+  color: #6c757d;
+  text-align: right;
+  font-weight: 500;
+}

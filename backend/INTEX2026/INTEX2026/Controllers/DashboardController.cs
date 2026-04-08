@@ -89,6 +89,9 @@ public class DashboardController : ControllerBase
         var appUser = await _userManager.GetUserAsync(User);
         decimal myTotal = 0;
         int myCount = 0;
+        int recurringCount = 0;
+        var donationsByType = new Dictionary<string, int>();
+        decimal avgDonation = 0;
 
         if (appUser != null && !string.IsNullOrWhiteSpace(appUser.Email))
         {
@@ -102,14 +105,42 @@ public class DashboardController : ControllerBase
                 var myDonations = _context.Donations.Where(d => supporterIds.Contains(d.SupporterId));
                 myTotal = await myDonations.SumAsync(d => d.Amount ?? d.EstimatedValue ?? 0m);
                 myCount = await myDonations.CountAsync();
+                recurringCount = await myDonations.CountAsync(d => d.IsRecurring);
+                
+                // Get breakdown by donation type
+                var typeBreakdown = await myDonations
+                    .GroupBy(d => d.DonationType)
+                    .Select(g => new { Type = g.Key, Count = g.Count() })
+                    .ToListAsync();
+                
+                foreach (var item in typeBreakdown)
+                {
+                    donationsByType[item.Type ?? "Unknown"] = item.Count;
+                }
+                
+                avgDonation = myCount > 0 ? myTotal / myCount : 0;
             }
         }
 
+        // Get lives helped (active residents)
+        var livesHelped = await _context.Residents.CountAsync();
+
+        // Get recent impact snapshots
         var lastSnapshots = await _context.PublicImpactSnapshots
             .Where(s => s.IsPublished)
             .OrderByDescending(s => s.SnapshotDate)
             .Take(3)
             .ToListAsync();
-        return Ok(new { myTotal, myCount, lastSnapshots });
+
+        return Ok(new 
+        { 
+            myTotal, 
+            myCount, 
+            recurringCount,
+            avgDonation,
+            donationsByType,
+            livesHelped,
+            lastSnapshots 
+        });
     }
 }

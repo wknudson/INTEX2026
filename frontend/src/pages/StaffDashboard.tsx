@@ -7,7 +7,7 @@ import { MetricsCard } from '../components/MetricsCard';
 import { FilterSortTable } from '../components/FilterSortTable';
 
 export function StaffDashboard() {
-  const { user } = useAuth();
+  useAuth(); // Ensure auth context is loaded
   const [tab, setTab] = useState('overview');
   const [overview, setOverview] = useState<any>(null);
   const [riskRows, setRiskRows] = useState<any[]>([]);
